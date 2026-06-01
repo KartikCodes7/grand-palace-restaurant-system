@@ -65,11 +65,16 @@ class OrderService {
     const activeSession = await window.cartService.resolveActiveSession(tableNumber);
     if (!activeSession) return [];
 
-    return this.ordersList.filter(o => 
-      o.tableNumber === tableNumber && 
-      (o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id) && 
-      o.status !== "Served"
-    );
+    return this.ordersList.filter(o => {
+      const matchTable = o.tableNumber === tableNumber;
+      const matchStatus = o.status !== "Served";
+      if (!matchTable || !matchStatus) return false;
+      
+      if (window.supabaseDbUpgraded) {
+        return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
+      }
+      return true;
+    });
   }
 
   async getOrderHistory(tableNumber = "5") {
@@ -77,11 +82,16 @@ class OrderService {
     const activeSession = await window.cartService.resolveActiveSession(tableNumber);
     if (!activeSession) return [];
 
-    return this.ordersList.filter(o => 
-      o.tableNumber === tableNumber && 
-      (o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id) && 
-      o.status === "Served"
-    );
+    return this.ordersList.filter(o => {
+      const matchTable = o.tableNumber === tableNumber;
+      const matchStatus = o.status === "Served";
+      if (!matchTable || !matchStatus) return false;
+      
+      if (window.supabaseDbUpgraded) {
+        return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
+      }
+      return true;
+    });
   }
 
   async submitOrder(items, totals, tableNumber = "5") {
@@ -94,7 +104,6 @@ class OrderService {
         const newOrderRow = {
           id: orderId,
           table_number: tableNumber,
-          session_id: sessionId || null,
           status: "Order Placed",
           subtotal: totals.subtotal,
           tax: totals.tax,
@@ -103,6 +112,10 @@ class OrderService {
           eta: "20 mins",
           timestamp: timestamp
         };
+
+        if (window.supabaseDbUpgraded) {
+          newOrderRow.session_id = sessionId || null;
+        }
 
         const { error: orderErr } = await window.supabaseClient
           .from("orders")

@@ -13,11 +13,14 @@ class FeedbackService {
       try {
         const newFeedback = {
           table_number: tableNumber,
-          session_id: sessionId || null,
           food_rating: parseInt(foodRating),
           service_rating: parseInt(serviceRating),
           comments: comments
         };
+
+        if (window.supabaseDbUpgraded) {
+          newFeedback.session_id = sessionId || null;
+        }
 
         const { error } = await window.supabaseClient
           .from("feedback")

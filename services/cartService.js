@@ -7,6 +7,29 @@ class CartService {
     this.cartData = {}; // Maps itemId -> quantity (aggregated for compatibility)
     this.sharedCartItems = []; // Raw records representing { guest_name, menu_item_id, quantity }
     this.comboSavings = 0; // Dynamic savings from AI combo upgrades
+    
+    // Check if Supabase schema is upgraded
+    window.supabaseDbUpgraded = false;
+    this.checkSchemaUpgraded();
+  }
+
+  async checkSchemaUpgraded() {
+    if (window.supabaseEnabled && window.supabaseClient) {
+      try {
+        const { error } = await window.supabaseClient
+          .from("table_sessions")
+          .select("session_id")
+          .limit(1);
+        if (!error) {
+          window.supabaseDbUpgraded = true;
+          console.log("👑 Grand Palace Backend: Session Management Schema is ACTIVE in Supabase.");
+        } else {
+          console.log("⚠️ Grand Palace Backend: Session Management Schema not detected in Supabase. Running in hybrid session isolation.");
+        }
+      } catch (e) {
+        console.log("⚠️ Grand Palace Backend: Schema check error. Running in hybrid session isolation.");
+      }
+    }
   }
 
   getGuestName() {
@@ -275,7 +298,7 @@ class CartService {
     const active = await this.resolveActiveSession(tableNum);
     if (!active) return [];
 
-    if (window.supabaseEnabled && window.supabaseClient) {
+    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
       try {
         const { data, error } = await window.supabaseClient
           .from("session_members")
@@ -298,7 +321,7 @@ class CartService {
   }
 
   async getAllActiveSessions() {
-    if (window.supabaseEnabled && window.supabaseClient) {
+    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
       try {
         const { data, error } = await window.supabaseClient
           .from("table_sessions")
@@ -325,7 +348,7 @@ class CartService {
   }
 
   async getAllSessions() {
-    if (window.supabaseEnabled && window.supabaseClient) {
+    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
       try {
         const { data, error } = await window.supabaseClient
           .from("table_sessions")
@@ -366,9 +389,6 @@ class CartService {
   /**
    * Synchronizes shared cart database rows with internal cache
    */
-  /**
-   * Synchronizes shared cart database rows with internal cache
-   */
   async syncSharedCart() {
     const tableNum = this.getTableNumber();
     const sessionId = this.getSessionId();
@@ -380,12 +400,16 @@ class CartService {
 
     if (window.supabaseEnabled && window.supabaseClient) {
       try {
-        const { data, error } = await window.supabaseClient
+        let query = window.supabaseClient
           .from("shared_carts")
           .select("*")
-          .eq("table_number", tableNum)
-          .eq("session_id", sessionId);
+          .eq("table_number", tableNum);
+        
+        if (window.supabaseDbUpgraded) {
+          query = query.eq("session_id", sessionId);
+        }
 
+        const { data, error } = await query;
         if (error) throw error;
 
         this.sharedCartItems = data || [];
@@ -433,16 +457,18 @@ class CartService {
 
     if (window.supabaseEnabled && window.supabaseClient) {
       try {
-        // Check if item already added by this specific guest in this session
-        const { data, error } = await window.supabaseClient
+        let query = window.supabaseClient
           .from("shared_carts")
           .select("*")
           .eq("table_number", tableNum)
-          .eq("session_id", sessionId)
           .eq("guest_name", guestName)
-          .eq("menu_item_id", itemId)
-          .maybeSingle();
+          .eq("menu_item_id", itemId);
 
+        if (window.supabaseDbUpgraded) {
+          query = query.eq("session_id", sessionId);
+        }
+
+        const { data, error } = await query.maybeSingle();
         if (error) throw error;
 
         if (data) {
@@ -454,15 +480,18 @@ class CartService {
           if (updErr) throw updErr;
         } else {
           // Insert new row
+          const newCartRow = {
+            table_number: tableNum,
+            guest_name: guestName,
+            menu_item_id: itemId,
+            quantity: 1
+          };
+          if (window.supabaseDbUpgraded) {
+            newCartRow.session_id = sessionId;
+          }
           const { error: insErr } = await window.supabaseClient
             .from("shared_carts")
-            .insert([{
-              table_number: tableNum,
-              session_id: sessionId,
-              guest_name: guestName,
-              menu_item_id: itemId,
-              quantity: 1
-            }]);
+            .insert([newCartRow]);
           if (insErr) throw insErr;
         }
         
@@ -515,15 +544,18 @@ class CartService {
 
     if (window.supabaseEnabled && window.supabaseClient) {
       try {
-        const { data, error } = await window.supabaseClient
+        let query = window.supabaseClient
           .from("shared_carts")
           .select("*")
           .eq("table_number", tableNum)
-          .eq("session_id", sessionId)
           .eq("guest_name", guestName)
-          .eq("menu_item_id", itemId)
-          .maybeSingle();
+          .eq("menu_item_id", itemId);
 
+        if (window.supabaseDbUpgraded) {
+          query = query.eq("session_id", sessionId);
+        }
+
+        const { data, error } = await query.maybeSingle();
         if (error) throw error;
 
         if (data) {
@@ -590,11 +622,16 @@ class CartService {
 
     if (window.supabaseEnabled && window.supabaseClient) {
       try {
-        const { error } = await window.supabaseClient
+        let query = window.supabaseClient
           .from("shared_carts")
           .delete()
-          .eq("table_number", tableNum)
-          .eq("session_id", sessionId);
+          .eq("table_number", tableNum);
+        
+        if (window.supabaseDbUpgraded) {
+          query = query.eq("session_id", sessionId);
+        }
+
+        const { error } = await query;
         if (error) throw error;
         
         this.cartData = {};
@@ -628,11 +665,16 @@ class CartService {
     if (active) {
       if (window.supabaseEnabled && window.supabaseClient) {
         try {
-          const { error } = await window.supabaseClient
+          let query = window.supabaseClient
             .from("shared_carts")
             .delete()
-            .eq("table_number", targetTable)
-            .eq("session_id", active.session_id);
+            .eq("table_number", targetTable);
+          
+          if (window.supabaseDbUpgraded) {
+            query = query.eq("session_id", active.session_id);
+          }
+
+          const { error } = await query;
           if (error) throw error;
         } catch (e) {
           console.error("Supabase shared carts clear error, utilizing local fallback:", e);
