@@ -147,6 +147,7 @@
   <script src="shared/events.js?v=6"></script>
   <script src="shared/supabase.js?v=6"></script>
   <script src="services/menuService.js?v=6"></script>
+  <script src="services/cartService.js?v=6"></script>
   <script src="services/orderService.js?v=6"></script>
   <script src="services/feedbackService.js?v=6"></script>
 
@@ -655,6 +656,11 @@
     }
 
     async function syncLocalData() {
+      // Await schema check completion to prevent race conditions
+      if (window.cartService && window.cartService.schemaCheckPromise) {
+        await window.cartService.schemaCheckPromise;
+      }
+      
       Dashboard.menu = await window.menuService.getMenu();
       
       // Resolve all sessions with members join

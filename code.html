@@ -622,6 +622,11 @@
     async function checkGuestSession() {
       const tableNum = App.tableNumber;
       
+      // Await schema check completion to prevent race conditions
+      if (window.cartService && window.cartService.schemaCheckPromise) {
+        await window.cartService.schemaCheckPromise;
+      }
+      
       // 1. Fetch active session from backend/local storage
       const active = await window.cartService.resolveActiveSession(tableNum);
       const cachedSessionId = window.cartService.getSessionId();
