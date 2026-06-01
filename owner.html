@@ -1028,7 +1028,7 @@
       `).join("");
       
       const printWindow = window.open("", "_blank", "width=380,height=550");
-      printWindow.document.write(\`
+      printWindow.document.write(`
         <html>
           <head>
             <title>Chef Preparation Chit #${orderId}</title>
@@ -1070,7 +1070,7 @@
             <\/script>
           </body>
         </html>
-      \`);
+      `);
       printWindow.document.close();
     }
 
