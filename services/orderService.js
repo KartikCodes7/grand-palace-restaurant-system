@@ -41,6 +41,7 @@ class OrderService {
             eta: order.eta || "20 mins",
             timestamp: order.timestamp,
             date: new Date(order.created_at).toLocaleDateString(),
+            createdAt: order.created_at,
             items: order.order_items.map(i => ({
               name: i.name,
               quantity: i.quantity,
@@ -128,6 +129,7 @@ class OrderService {
       eta: "20 mins",
       timestamp: timestamp,
       date: new Date().toLocaleDateString(),
+      createdAt: new Date().toISOString(),
       history: [
         { status: "Order Placed", completed: true },
         { status: "Accepted", completed: false },

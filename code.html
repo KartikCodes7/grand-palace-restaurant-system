@@ -409,6 +409,14 @@
           </div>
         </div>
 
+        <!-- Split Bill Estimator block -->
+        <div id="cart-split-bill-section" class="border-b border-outline-variant/15 pb-3 hidden flex flex-col gap-2 animate-fadeIn">
+          <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-semibold">👥 Real-time Split Estimator</p>
+          <div id="cart-split-bill-list" class="flex flex-col gap-2">
+            <!-- Dynamic guest balances -->
+          </div>
+        </div>
+
         <div class="flex justify-between items-center font-bold text-sm text-primary">
           <span>Estimated Total Due</span>
           <span class="text-secondary font-mono text-base" id="cart-grand-total">₹0.00</span>
@@ -567,6 +575,26 @@
     </div>
   </div>
 
+  <!-- GUEST NAME MODAL ENTRY OVERLAY -->
+  <div id="guest-name-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-surface p-8 rounded-2xl flex flex-col gap-6 border border-outline-variant/35 shadow-2xl relative animate-float">
+      <div class="text-center flex flex-col gap-1.5">
+        <p class="font-label-caps text-xs text-secondary tracking-widest uppercase font-semibold">GASTRONOMY GROUP DINING</p>
+        <h2 class="font-display-lg-mobile text-2xl text-primary leading-none">Welcome to The Grand Palace</h2>
+        <p class="text-xs text-on-surface-variant leading-relaxed font-body-md">Please enter your name to join your table's shared culinary cart room.</p>
+      </div>
+      <form id="guest-name-form" class="flex flex-col gap-4" onsubmit="saveGuestName(event)">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-primary">Your Name</label>
+          <input type="text" id="guest-input-name" required placeholder="e.g. Amit, Sara, John" class="w-full bg-white border border-outline-variant/35 rounded-lg text-xs p-3 text-primary focus:border-secondary focus:ring-secondary"/>
+        </div>
+        <button type="submit" class="w-full bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center mt-2 luxury-shadow">
+          JOIN TABLE CART
+        </button>
+      </form>
+    </div>
+  </div>
+
 
   <!-- MAIN APP ORCHESTRATOR SCRIPTS -->
   <script>
@@ -590,9 +618,32 @@
     // Feedbacks rating state tracking variables
     let currentRatings = { food: 0, service: 0 };
 
+    function checkGuestSession() {
+      const guestName = localStorage.getItem("gp_guest_name");
+      if (!guestName) {
+        document.getElementById("guest-name-overlay").classList.remove("hidden");
+      } else {
+        document.getElementById("guest-name-overlay").classList.add("hidden");
+      }
+    }
+
+    function saveGuestName(e) {
+      e.preventDefault();
+      const name = document.getElementById("guest-input-name").value;
+      if (name && name.trim() !== "") {
+        window.cartService.setGuestName(name);
+        document.getElementById("guest-name-overlay").classList.add("hidden");
+        showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
+        window.onAppStateChanged();
+      }
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
       // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
       loadTableSession();
+
+      // 1.5. Validate Guest Group-Dining Session
+      checkGuestSession();
 
       // 2. Fetch menus and specials from menuService
       await refreshData();
@@ -627,6 +678,28 @@
 
       // 7. Connect live Supabase Realtime socket sync channels
       if (window.supabaseEnabled && window.supabaseClient) {
+        // Subscribe to dynamic group shared cart actions
+        window.supabaseClient
+          .channel("realtime:shared_carts")
+          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Shared Cart update received!", payload);
+            
+            // Pop up botanical alerts when other table guests execute additions
+            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
+            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
+            }
+            
+            await window.cartService.syncSharedCart();
+            renderUI();
+          })
+          .subscribe();
+
         // Subscribe to dynamic stock/availability changes in menu
         window.supabaseClient
           .channel("realtime:menu_items")
@@ -1032,6 +1105,11 @@
       }
 
       summary.itemsList.forEach((ci) => {
+        const contributors = window.cartService.getSharedCartItems().filter(i => i.menu_item_id === ci.item.id);
+        const contributorsStr = contributors.length > 0
+          ? contributors.map(c => `<span class="bg-secondary/10 px-1.5 py-0.5 rounded text-[8.5px] font-bold text-secondary">${c.guest_name} (x${c.quantity})</span>`).join(" ")
+          : `<span class="bg-secondary/10 px-1.5 py-0.5 rounded text-[8.5px] font-bold text-secondary">${window.cartService.getGuestName()} (x${ci.quantity})</span>`;
+
         const itemRow = document.createElement("div");
         itemRow.className = "glass-card p-3 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
         itemRow.innerHTML = `
@@ -1042,19 +1120,57 @@
             <div>
               <h4 class="font-bold text-primary">${ci.item.name}</h4>
               <p class="text-[10px] text-on-surface-variant font-mono">₹${ci.item.price} each</p>
+              <div class="flex flex-wrap gap-1 mt-1">${contributorsStr}</div>
             </div>
           </div>
           <div class="flex items-center gap-4">
             <div class="flex items-center border border-outline-variant/30 rounded-lg bg-white">
-              <button class="px-2 py-1 text-on-surface-variant hover:text-secondary font-bold text-xs" onclick="window.cartService.removeFromCart('${ci.item.id}')">-</button>
-              <span class="px-2 text-xs font-mono font-bold text-primary">${ci.quantity}</span>
-              <button class="px-2 py-1 text-on-surface-variant hover:text-secondary font-bold text-xs" onclick="window.cartService.addToCart('${ci.item.id}')">+</button>
+              <button class="px-2.5 py-1 text-on-surface-variant hover:text-secondary font-bold text-xs" onclick="window.cartService.removeFromCart('${ci.item.id}')">-</button>
+              <span class="px-2.5 text-xs font-mono font-bold text-primary">${ci.quantity}</span>
+              <button class="px-2.5 py-1 text-on-surface-variant hover:text-secondary font-bold text-xs" onclick="window.cartService.addToCart('${ci.item.id}')">+</button>
             </div>
             <span class="font-mono font-bold text-primary min-w-[50px] text-right">₹${ci.totalPrice.toFixed(2)}</span>
           </div>
         `;
         container.appendChild(itemRow);
       });
+
+      // Render Split Bill balance estimates
+      const guestTotals = {};
+      window.cartService.getSharedCartItems().forEach((row) => {
+        const item = App.menu.find(m => m.id === row.menu_item_id);
+        if (item) {
+          guestTotals[row.guest_name] = (guestTotals[row.guest_name] || 0) + (item.price * row.quantity);
+        }
+      });
+
+      const uniqueGuests = Object.keys(guestTotals).length;
+      const splitBillSection = document.getElementById("cart-split-bill-section");
+      const splitBillList = document.getElementById("cart-split-bill-list");
+      
+      if (uniqueGuests >= 2) {
+        splitBillList.innerHTML = "";
+        const taxRate = 0.08;
+        const serviceChargeRate = 0.10;
+        
+        Object.entries(guestTotals).forEach(([name, sub]) => {
+          const total = sub + (sub * taxRate) + (sub * serviceChargeRate);
+          const initials = name.slice(0, 2).toUpperCase();
+          const row = document.createElement("div");
+          row.className = "flex justify-between items-center bg-white/40 p-2.5 rounded-lg border border-outline-variant/15 text-[11px] animate-fadeIn";
+          row.innerHTML = `
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-secondary/15 text-secondary flex items-center justify-center font-bold text-[9px]">${initials}</span>
+              <span class="font-bold text-primary">${name}</span>
+            </div>
+            <span class="font-mono text-secondary font-bold">₹${total.toFixed(2)}</span>
+          `;
+          splitBillList.appendChild(row);
+        });
+        splitBillSection.classList.remove("hidden");
+      } else {
+        splitBillSection.classList.add("hidden");
+      }
 
       // Populate pricing numbers
       document.getElementById("cart-subtotal").textContent = `₹${summary.subtotal.toFixed(2)}`;
