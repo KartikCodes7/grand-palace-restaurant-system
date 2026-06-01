@@ -33,6 +33,7 @@ class OrderService {
           return {
             id: order.id,
             tableNumber: order.table_number,
+            sessionId: order.session_id,
             status: order.status,
             subtotal: Number(order.subtotal),
             tax: Number(order.tax),
@@ -61,23 +62,39 @@ class OrderService {
 
   async getActiveOrders(tableNumber = "5") {
     await this.syncOrders();
-    return this.ordersList.filter(o => o.tableNumber === tableNumber && o.status !== "Served");
+    const activeSession = await window.cartService.resolveActiveSession(tableNumber);
+    if (!activeSession) return [];
+
+    return this.ordersList.filter(o => 
+      o.tableNumber === tableNumber && 
+      (o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id) && 
+      o.status !== "Served"
+    );
   }
 
   async getOrderHistory(tableNumber = "5") {
     await this.syncOrders();
-    return this.ordersList.filter(o => o.tableNumber === tableNumber && o.status === "Served");
+    const activeSession = await window.cartService.resolveActiveSession(tableNumber);
+    if (!activeSession) return [];
+
+    return this.ordersList.filter(o => 
+      o.tableNumber === tableNumber && 
+      (o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id) && 
+      o.status === "Served"
+    );
   }
 
   async submitOrder(items, totals, tableNumber = "5") {
     const orderId = `ORD${Math.floor(100 + Math.random() * 900)}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const sessionId = window.cartService.getSessionId();
 
     if (window.supabaseEnabled) {
       try {
         const newOrderRow = {
           id: orderId,
           table_number: tableNumber,
+          session_id: sessionId || null,
           status: "Order Placed",
           subtotal: totals.subtotal,
           tax: totals.tax,
@@ -117,8 +134,11 @@ class OrderService {
   }
 
   submitOrderLocally(orderId, timestamp, items, totals, tableNumber) {
+    const sessionId = window.cartService.getSessionId();
     const newOrder = {
       id: orderId,
+      sessionId: sessionId || null,
+      session_id: sessionId || null,
       items: items.map(i => ({ name: i.item.name, quantity: i.quantity, price: i.item.price })),
       subtotal: totals.subtotal,
       tax: totals.tax,

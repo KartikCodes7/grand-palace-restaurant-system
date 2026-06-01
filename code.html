@@ -620,14 +620,36 @@
     let currentRatings = { food: 0, service: 0 };
 
     async function checkGuestSession() {
-      const guestName = localStorage.getItem("gp_guest_name");
-      if (!guestName) {
+      const tableNum = App.tableNumber;
+      
+      // 1. Fetch active session from backend/local storage
+      const active = await window.cartService.resolveActiveSession(tableNum);
+      const cachedSessionId = window.cartService.getSessionId();
+      
+      if (!active) {
+        // No active session exists at this table (Vacant).
+        localStorage.removeItem("gp_guest_name");
+        window.cartService.setSessionId("");
         document.getElementById("guest-name-overlay").classList.remove("hidden");
       } else {
-        document.getElementById("guest-name-overlay").classList.add("hidden");
-        // Reinforce table session registration on reload/re-enter
-        await window.cartService.joinTableSession(guestName);
-        syncTableGuests();
+        // Active session exists!
+        if (cachedSessionId !== active.session_id) {
+          // This guest's browser is not associated with this active session!
+          localStorage.removeItem("gp_guest_name");
+          window.cartService.setSessionId(active.session_id);
+          document.getElementById("guest-name-overlay").classList.remove("hidden");
+        } else {
+          // Already associated with this active session!
+          const guestName = localStorage.getItem("gp_guest_name");
+          if (!guestName) {
+            document.getElementById("guest-name-overlay").classList.remove("hidden");
+          } else {
+            document.getElementById("guest-name-overlay").classList.add("hidden");
+            // Reinforce session member registration
+            await window.cartService.joinSessionMember(active.session_id, guestName);
+            await syncTableGuests();
+          }
+        }
       }
     }
 
@@ -638,7 +660,33 @@
         await window.cartService.setGuestName(name);
         document.getElementById("guest-name-overlay").classList.add("hidden");
         showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
+        
+        // Setup session members listener reactively after joining
+        setupSessionMembersListener();
+        
         window.onAppStateChanged();
+      }
+    }
+
+    let sessionMembersSubscription = null;
+    function setupSessionMembersListener() {
+      if (window.supabaseEnabled && window.supabaseClient) {
+        const currentSid = window.cartService.getSessionId();
+        if (currentSid) {
+          if (sessionMembersSubscription) {
+            window.supabaseClient.removeChannel(sessionMembersSubscription);
+          }
+          sessionMembersSubscription = window.supabaseClient
+            .channel("realtime:session_members_active")
+            .on("postgres_changes", { event: "*", schema: "public", table: "session_members", filter: `session_id=eq.${currentSid}` }, async (payload) => {
+              console.log("🔥 Realtime: Session members update received!", payload);
+              if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
+                showToast("GUEST JOINED", `${payload.new.guest_name} joined your dining table!`, "person");
+              }
+              await syncTableGuests();
+            })
+            .subscribe();
+        }
       }
     }
 
@@ -647,7 +695,7 @@
       loadTableSession();
 
       // 1.5. Validate Guest Group-Dining Session
-      checkGuestSession();
+      await checkGuestSession();
 
       // 2. Fetch menus and specials from menuService
       await refreshData();
@@ -687,9 +735,20 @@
           .channel("realtime:table_sessions")
           .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
             console.log("🔥 Realtime: Table sessions update received!", payload);
+            if (payload.eventType === "UPDATE" && payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
+              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
+              setTimeout(() => {
+                localStorage.removeItem("gp_guest_name");
+                window.cartService.setSessionId("");
+                window.location.reload();
+              }, 3000);
+            }
             await syncTableGuests();
           })
           .subscribe();
+
+        // Initial setup for session members listener
+        setupSessionMembersListener();
 
         // Subscribe to dynamic group shared cart actions
         window.supabaseClient
@@ -698,11 +757,11 @@
             console.log("🔥 Realtime: Shared Cart update received!", payload);
             
             // Pop up botanical alerts when other table guests execute additions
-            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
+            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
               const item = App.menu.find(m => m.id === payload.new.menu_item_id);
               const name = item ? item.name : "an item";
               showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
-            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName()) {
+            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
               const item = App.menu.find(m => m.id === payload.new.menu_item_id);
               const name = item ? item.name : "an item";
               showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");

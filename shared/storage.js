@@ -10,6 +10,7 @@ class GrandPalaceStorage {
       FEEDBACKS: "gp_feedbacks_list",
       SESSION: "gp_owner_session",
       TABLE_SESSIONS: "gp_table_sessions",
+      SESSION_MEMBERS: "gp_session_members",
       SHARED_CARTS: "gp_shared_carts"
     };
     
@@ -205,6 +206,10 @@ class GrandPalaceStorage {
   getSharedCarts() { return this.get(this.KEYS.SHARED_CARTS) || []; }
   saveSharedCarts(carts) { this.set(this.KEYS.SHARED_CARTS, carts); }
   clearSharedCarts() { localStorage.removeItem(this.KEYS.SHARED_CARTS); }
+
+  getSessionMembers() { return this.get(this.KEYS.SESSION_MEMBERS) || []; }
+  saveSessionMembers(members) { this.set(this.KEYS.SESSION_MEMBERS, members); }
+  clearSessionMembers() { localStorage.removeItem(this.KEYS.SESSION_MEMBERS); }
 }
 
 window.gpStorage = new GrandPalaceStorage();

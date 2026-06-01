@@ -8,10 +8,12 @@ class FeedbackService {
   }
 
   async submitFeedback(foodRating, serviceRating, comments, tableNumber = "5") {
+    const sessionId = window.cartService.getSessionId();
     if (window.supabaseEnabled) {
       try {
         const newFeedback = {
           table_number: tableNumber,
+          session_id: sessionId || null,
           food_rating: parseInt(foodRating),
           service_rating: parseInt(serviceRating),
           comments: comments
@@ -27,7 +29,8 @@ class FeedbackService {
           foodRating,
           serviceRating,
           comments,
-          tableNumber
+          tableNumber,
+          sessionId: sessionId || null
         };
       } catch (e) {
         console.error("Supabase feedback submit error, saving locally:", e);
@@ -39,6 +42,7 @@ class FeedbackService {
   }
 
   submitFeedbackLocally(foodRating, serviceRating, comments, tableNumber) {
+    const sessionId = window.cartService.getSessionId();
     this.feedbacksList = window.gpStorage.getFeedbacks() || [];
     const feedback = {
       id: `FDB-${Math.floor(100 + Math.random() * 900)}`,
@@ -46,6 +50,7 @@ class FeedbackService {
       serviceRating: parseInt(serviceRating),
       comments: comments,
       tableNumber: tableNumber,
+      sessionId: sessionId || null,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString()
     };
