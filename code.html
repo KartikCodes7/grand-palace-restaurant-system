@@ -1756,11 +1756,11 @@
       const billRequestRow = document.getElementById("bill-request-action-row");
       const requestBillBtn = document.getElementById("btn-request-bill");
       
-      const hasAnyOrders = App.activeOrders.length > 0 || App.pastOrders.length > 0;
+      const hasServedOrders = App.pastOrders.length > 0;
       const activeSessionId = window.cartService.getSessionId();
       
       if (billRequestRow && requestBillBtn) {
-        if (activeSessionId && hasAnyOrders) {
+        if (activeSessionId && hasServedOrders) {
           billRequestRow.classList.remove("hidden");
           
           const allSessions = window.gpStorage.getTableSessions();
