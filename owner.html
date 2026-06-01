@@ -321,6 +321,17 @@
 
       </section>
 
+      <!-- TABLE MANAGEMENT SYSTEM GRID -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Real-Time Table Management</h4>
+          <span class="text-[9px] text-on-surface-variant font-mono uppercase">12 Dining Arenas</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="table-management-grid">
+          <!-- Dynamically populated table cards -->
+        </div>
+      </section>
+
       <!-- MENU CATALOG STOCK MANAGER -->
       <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
@@ -358,6 +369,15 @@
           <div class="relative flex items-center bg-white border border-outline-variant/35 rounded-lg px-3 py-2 focus-within:border-secondary transition-all">
             <span class="material-symbols-outlined text-on-surface-variant/80 text-sm mr-2 select-none">search</span>
             <input type="text" id="owner-search-input" placeholder="Search Order ID (#102) or Table..." class="w-full bg-transparent border-0 p-0 text-xs focus:ring-0 focus:outline-none text-primary placeholder-on-surface-variant/60" oninput="renderKitchenOrders()"/>
+          </div>
+
+          <!-- KDS Station Tabs Selector -->
+          <div class="flex flex-wrap gap-1 mt-1 bg-secondary/5 p-1 rounded-lg">
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-secondary text-white shadow-sm shrink-0" onclick="setKdsStation('All', this)">ALL</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Starters', this)">🥗 STARTERS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Main Course', this)">🍛 MAINS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Ice Cream', this)">🍰 DESSERTS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Beverages', this)">🍹 DRINKS</button>
           </div>
         </div>
 
@@ -434,7 +454,10 @@
       orders: [],
       feedbacks: [],
       searchQuery: "",
-      isAuthenticated: false
+      isAuthenticated: false,
+      activeStation: "All",
+      tableSessions: [],
+      sharedCarts: []
     };
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -502,6 +525,26 @@
           .channel("realtime:owner_menu")
           .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
             console.log("🔥 Realtime: Menu items updated!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to table sessions changes in realtime
+        window.supabaseClient
+          .channel("realtime:owner_table_sessions")
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, async () => {
+            console.log("🔥 Realtime: Seated guest session update received!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to shared carts changes in realtime
+        window.supabaseClient
+          .channel("realtime:owner_shared_carts")
+          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts" }, async () => {
+            console.log("🔥 Realtime: Seated guest cart update received!");
             await syncLocalData();
             renderDashboard();
           })
@@ -577,6 +620,23 @@
         try {
           await window.orderService.syncOrders();
         } catch(e) {}
+
+        try {
+          const { data: sessData, error: sessErr } = await window.supabaseClient
+            .from("table_sessions")
+            .select("*");
+          if (!sessErr) Dashboard.tableSessions = sessData || [];
+        } catch(e) {}
+
+        try {
+          const { data: cartData, error: cartErr } = await window.supabaseClient
+            .from("shared_carts")
+            .select("*");
+          if (!cartErr) Dashboard.sharedCarts = cartData || [];
+        } catch(e) {}
+      } else {
+        Dashboard.tableSessions = window.gpStorage.getTableSessions() || [];
+        Dashboard.sharedCarts = window.gpStorage.getSharedCarts() || [];
       }
       Dashboard.orders = window.orderService.ordersList;
       Dashboard.feedbacks = await window.feedbackService.getFeedbackLogs();
@@ -590,6 +650,7 @@
       renderCategoryRevenue();
       renderTopSellingDishes();
       renderInventoryList();
+      renderTableManagementGrid();
       renderKitchenOrders();
       renderFeedbackFeed();
     }
@@ -834,16 +895,33 @@
         return matchId || matchTable;
       });
 
-      if (activeOrders.length === 0) {
+      // Filter active orders by selected KDS station
+      const stationFilteredOrders = [];
+      activeOrders.forEach((o) => {
+        if (Dashboard.activeStation === "All") {
+          stationFilteredOrders.push({ order: o, items: o.items });
+        } else {
+          const filteredItems = o.items.filter((oi) => {
+            const m = Dashboard.menu.find(x => x.name === oi.name);
+            const cat = m ? m.category : "Starters";
+            return cat === Dashboard.activeStation;
+          });
+          if (filteredItems.length > 0) {
+            stationFilteredOrders.push({ order: o, items: filteredItems });
+          }
+        }
+      });
+
+      if (stationFilteredOrders.length === 0) {
         container.innerHTML = `
-          <div class="p-6 text-center text-xs text-on-surface-variant/80 border border-dashed border-outline-variant/30 rounded-xl">
-            No active kitchen orders queue found.
+          <div class="p-6 text-center text-xs text-on-surface-variant/80 border border-dashed border-outline-variant/30 rounded-xl bg-white/40">
+            No active orders found in the ${Dashboard.activeStation === 'All' ? 'kitchen' : Dashboard.activeStation + ' Station'} queue.
           </div>
         `;
         return;
       }
 
-      activeOrders.forEach((o) => {
+      stationFilteredOrders.forEach(({ order: o, items: visibleItems }) => {
         const itemRow = document.createElement("div");
         
         // 1. Calculate preparation duration stopwatch
@@ -871,7 +949,7 @@
           timerBg = "bg-yellow-100 text-yellow-700 font-bold animate-pulse";
           warningBadge = `
             <span class="bg-yellow-100 text-yellow-700 text-[8.5px] px-2.5 py-0.5 rounded font-bold font-mono uppercase tracking-wider animate-pulse flex items-center gap-0.5 border border-yellow-200">
-              <span class="material-symbols-outlined text-[10.5px]">timer</span> DELAYED
+               <span class="material-symbols-outlined text-[10.5px]">timer</span> DELAYED
             </span>
           `;
         } else {
@@ -882,8 +960,8 @@
 
         itemRow.className = `bg-white p-4.5 rounded-xl border ${borderClass} flex flex-col gap-3 relative transition-all shadow-sm`;
 
-        // Build items detail string
-        const itemsDetail = o.items.map(i => `<span class="font-bold text-primary">${i.quantity}x</span> ${i.name}`).join(", ");
+        // Build visible items list
+        const itemsDetail = visibleItems.map(i => `<span class="font-bold text-primary">${i.quantity}x</span> ${i.name}`).join(", ");
         
         // Render timeline progress indicators actions
         let controllerHtml = `<div class="flex gap-2 justify-end mt-1">`;
@@ -920,15 +998,20 @@
             </button>
           `;
         }
-        
+
         controllerHtml += `</div>`;
 
+        let stationHeaderBadge = "";
+        if (Dashboard.activeStation !== "All") {
+          stationHeaderBadge = `<span class="text-[7.5px] bg-secondary/15 text-secondary px-2 py-0.5 rounded font-mono font-bold tracking-wider uppercase shrink-0">📍 ${Dashboard.activeStation}</span>`;
+        }
+
         itemRow.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex justify-between items-start gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
                 <span class="font-mono font-bold text-xs text-primary">${o.id}</span>
-                <span class="text-[9px] bg-secondary/15 text-secondary px-2.5 py-0.5 rounded-full font-bold font-mono tracking-wide">
+                <span class="text-[9px] bg-secondary/15 text-secondary px-2.5 py-0.5 rounded-full font-bold font-mono tracking-wide shrink-0">
                   Table ${o.tableNumber}
                 </span>
                 <span class="text-[8px] bg-primary/5 border border-outline-variant/30 text-on-surface-variant font-mono px-1.5 py-0.2 rounded font-bold">${o.timestamp}</span>
@@ -940,9 +1023,10 @@
               <p class="text-xs text-on-surface-variant/90 mt-2 font-medium leading-relaxed">${itemsDetail}</p>
             </div>
             
-            <div class="text-right shrink-0">
+            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
               <span class="text-xs font-mono font-bold text-secondary">₹${o.total.toFixed(2)}</span>
-              <p class="text-[8.5px] font-label-caps text-on-surface-variant mt-1.5 font-bold uppercase tracking-wider">${o.status}</p>
+              <p class="text-[8.5px] font-label-caps text-on-surface-variant font-bold uppercase tracking-wider">${o.status}</p>
+              ${stationHeaderBadge}
             </div>
           </div>
           
@@ -950,6 +1034,23 @@
         `;
         container.appendChild(itemRow);
       });
+    }
+
+    /**
+     * KDS Station Filter selector
+     */
+    function setKdsStation(stationName, button) {
+      Dashboard.activeStation = stationName;
+      
+      // Update UI classes on tabs
+      document.querySelectorAll(".kds-station-tab").forEach(btn => {
+        btn.className = "kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0";
+      });
+      
+      button.className = "kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-secondary text-white shadow-sm shrink-0";
+      
+      playGoldChime();
+      renderKitchenOrders();
     }
 
     /**
@@ -1072,6 +1173,97 @@
         </html>
       `);
       printWindow.document.close();
+    }
+
+    /**
+     * Table Management Grid Renderer
+     */
+    function renderTableManagementGrid() {
+      const container = document.getElementById("table-management-grid");
+      if (!container) return;
+      container.innerHTML = "";
+
+      for (let t = 1; t <= 12; t++) {
+        const tableNum = String(t);
+        
+        // 1. Resolve guests
+        const guests = Dashboard.tableSessions
+          .filter(s => s.table_number === tableNum)
+          .map(s => s.guest_name);
+
+        // 2. Resolve active cart items
+        const hasCart = Dashboard.sharedCarts.some(c => c.table_number === tableNum);
+
+        // 3. Resolve active unserved orders
+        const activeOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && o.status !== "Served");
+
+        // 4. Resolve completed served orders
+        const completedOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && o.status === "Served");
+
+        // 5. Determine dynamic status
+        let status = "Vacant";
+        let statusClass = "bg-neutral-100 text-neutral-500 border-neutral-300";
+        
+        if (activeOrders.length > 0) {
+          status = "Waiting Food";
+          statusClass = "bg-amber-100 text-amber-700 border-amber-300 animate-pulse font-bold";
+        } else if (hasCart) {
+          status = "Ordering";
+          statusClass = "bg-purple-100 text-purple-700 border-purple-300 animate-pulse font-semibold";
+        } else if (completedOrders.length > 0) {
+          status = "Completed";
+          statusClass = "bg-green-100 text-green-700 border-green-300 font-bold";
+        } else if (guests.length > 0) {
+          status = "Occupied";
+          statusClass = "bg-secondary-fixed text-on-secondary-fixed border-secondary font-semibold";
+        }
+
+        const card = document.createElement("div");
+        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${status !== 'Vacant' ? 'border-secondary/40 animate-[pulse_6s_infinite]' : 'border-outline-variant/20'}`;
+
+        // Guests description string
+        const guestsDesc = guests.length > 0 
+          ? `<p class="text-[9.5px] text-primary font-semibold truncate" title="${guests.join(', ')}">👥 ${guests.join(', ')}</p>` 
+          : `<p class="text-[9.5px] text-on-surface-variant/50 italic">Empty</p>`;
+
+        // Clear action button
+        const actionButton = status !== "Vacant"
+          ? `<button class="w-full bg-secondary-fixed/50 hover:bg-secondary text-primary hover:text-white font-bold py-1 px-2 text-[8px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-outline-variant/30" onclick="clearOwnerTable('${tableNum}')">Clear Table</button>`
+          : `<div class="w-full py-1 text-center text-[7.5px] font-mono uppercase text-on-surface-variant/40 border border-dashed border-outline-variant/25 rounded select-none">Available</div>`;
+
+        card.innerHTML = `
+          <div class="flex flex-col gap-1.5 min-w-0">
+            <div class="flex justify-between items-center gap-2">
+              <span class="font-mono text-xs font-extrabold text-primary">T-${tableNum.padStart(2, '0')}</span>
+              <span class="text-[8px] px-1.5 py-0.5 rounded border leading-none shrink-0 ${statusClass}">${status}</span>
+            </div>
+            ${guestsDesc}
+          </div>
+          ${actionButton}
+        `;
+        
+        container.appendChild(card);
+      }
+    }
+
+    /**
+     * Clear / Settle Table sessions and active carts
+     */
+    async function clearOwnerTable(tableNum) {
+      if (confirm(`Are you sure you want to clear and settle Table ${tableNum}? This wipes active guest sessions and shared carts.`)) {
+        try {
+          // Clear shared carts
+          await window.cartService.clearSharedCarts(tableNum);
+          // Clear table sessions
+          await window.cartService.clearTableSessions(tableNum);
+          
+          playGoldChime();
+          await syncLocalData();
+          renderDashboard();
+        } catch (e) {
+          console.error("Error clearing table:", e);
+        }
+      }
     }
 
     // 1-second dynamic re-render stopwatch interval loop

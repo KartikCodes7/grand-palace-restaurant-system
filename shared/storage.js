@@ -8,7 +8,9 @@ class GrandPalaceStorage {
       MENU: "gp_menu_catalog",
       ORDERS: "gp_orders_list",
       FEEDBACKS: "gp_feedbacks_list",
-      SESSION: "gp_owner_session"
+      SESSION: "gp_owner_session",
+      TABLE_SESSIONS: "gp_table_sessions",
+      SHARED_CARTS: "gp_shared_carts"
     };
     
     this.seedInitialData();
@@ -192,9 +194,17 @@ class GrandPalaceStorage {
   getFeedbacks() { return this.get(this.KEYS.FEEDBACKS); }
   saveFeedbacks(feedbacks) { this.set(this.KEYS.FEEDBACKS, feedbacks); }
 
-  getSession() { return this.get(this.KEYS.SESSION); }
+   getSession() { return this.get(this.KEYS.SESSION); }
   saveSession(session) { this.set(this.KEYS.SESSION, session); }
   clearSession() { localStorage.removeItem(this.KEYS.SESSION); }
+
+  getTableSessions() { return this.get(this.KEYS.TABLE_SESSIONS) || []; }
+  saveTableSessions(sessions) { this.set(this.KEYS.TABLE_SESSIONS, sessions); }
+  clearTableSessions() { localStorage.removeItem(this.KEYS.TABLE_SESSIONS); }
+
+  getSharedCarts() { return this.get(this.KEYS.SHARED_CARTS) || []; }
+  saveSharedCarts(carts) { this.set(this.KEYS.SHARED_CARTS, carts); }
+  clearSharedCarts() { localStorage.removeItem(this.KEYS.SHARED_CARTS); }
 }
 
 window.gpStorage = new GrandPalaceStorage();

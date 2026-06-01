@@ -215,6 +215,7 @@
 
     <!-- Table Dynamic Badge from QR Code -->
     <div class="flex items-center gap-3">
+      <div id="table-guests-tray" class="hidden md:flex items-center -space-x-1.5 overflow-hidden"></div>
       <span class="text-xs bg-secondary/15 text-secondary px-3 py-1.5 rounded-full font-label-caps font-bold"
         id="header-table-badge">Table 5</span>
     </div>
@@ -618,20 +619,23 @@
     // Feedbacks rating state tracking variables
     let currentRatings = { food: 0, service: 0 };
 
-    function checkGuestSession() {
+    async function checkGuestSession() {
       const guestName = localStorage.getItem("gp_guest_name");
       if (!guestName) {
         document.getElementById("guest-name-overlay").classList.remove("hidden");
       } else {
         document.getElementById("guest-name-overlay").classList.add("hidden");
+        // Reinforce table session registration on reload/re-enter
+        await window.cartService.joinTableSession(guestName);
+        syncTableGuests();
       }
     }
 
-    function saveGuestName(e) {
+    async function saveGuestName(e) {
       e.preventDefault();
       const name = document.getElementById("guest-input-name").value;
       if (name && name.trim() !== "") {
-        window.cartService.setGuestName(name);
+        await window.cartService.setGuestName(name);
         document.getElementById("guest-name-overlay").classList.add("hidden");
         showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
         window.onAppStateChanged();
@@ -678,6 +682,15 @@
 
       // 7. Connect live Supabase Realtime socket sync channels
       if (window.supabaseEnabled && window.supabaseClient) {
+        // Subscribe to dynamic table session updates
+        window.supabaseClient
+          .channel("realtime:table_sessions")
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Table sessions update received!", payload);
+            await syncTableGuests();
+          })
+          .subscribe();
+
         // Subscribe to dynamic group shared cart actions
         window.supabaseClient
           .channel("realtime:shared_carts")
@@ -734,6 +747,7 @@
           const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
 
           await refreshData();
+          await syncTableGuests();
 
           const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
           if (activeBefore !== activeAfter) {
@@ -790,6 +804,46 @@
         App.pastOrders = await window.orderService.getOrderHistory(App.tableNumber);
       } catch (err) {
         console.error("Gastronomy sync error:", err);
+      }
+    }
+
+    async function syncTableGuests() {
+      try {
+        const guests = await window.cartService.getTableSessions();
+        const tray = document.getElementById("table-guests-tray");
+        if (!tray) return;
+
+        if (guests.length === 0) {
+          tray.innerHTML = "";
+          tray.classList.add("hidden");
+          return;
+        }
+
+        tray.classList.remove("hidden");
+        tray.classList.add("flex");
+        tray.innerHTML = "";
+
+        guests.forEach((g) => {
+          const name = g.guest_name || "Guest";
+          const initials = name.trim().split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+          
+          // Generate an elegant, soft pastel HSL color based on the hash of the guest's name
+          let hash = 0;
+          for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const hue = Math.abs(hash % 360);
+          const bgStyle = `background-color: hsl(${hue}, 45%, 85%); color: hsl(${hue}, 55%, 30%);`;
+
+          const avatar = document.createElement("div");
+          avatar.className = "w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white uppercase shadow-sm select-none shrink-0 transition-all hover:scale-110";
+          avatar.setAttribute("style", bgStyle);
+          avatar.title = name;
+          avatar.textContent = initials;
+          tray.appendChild(avatar);
+        });
+      } catch (err) {
+        console.error("Table guests tray sync error:", err);
       }
     }
 
