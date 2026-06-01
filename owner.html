@@ -543,8 +543,8 @@
 
     async function handleOwnerLogin(e) {
       e.preventDefault();
-      const email = document.getElementById("login-email").value;
-      const pass = document.getElementById("login-password").value;
+      const email = document.getElementById("login-email").value.trim();
+      const pass = document.getElementById("login-password").value.trim();
 
       if (email === "owner@grandpalace.com" && pass === "admin") {
         window.gpStorage.saveSession({ authenticated: true, timestamp: Date.now() });
