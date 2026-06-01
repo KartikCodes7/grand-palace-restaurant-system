@@ -13,6 +13,9 @@
   <!-- Material Symbols -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1" rel="stylesheet"/>
   
+  <!-- html2pdf.js for Receipt PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script id="tailwind-config">
@@ -109,11 +112,6 @@
     body {
       background-color: #fbf9f8;
       -webkit-tap-highlight-color: transparent;
-      background-image: url('botanical_background.png');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      background-attachment: fixed;
     }
     .glass-card {
       background: rgba(255, 255, 255, 0.8);
@@ -358,6 +356,28 @@
           <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Real-Time Table Management</h4>
           <span class="text-[9px] text-on-surface-variant font-mono uppercase">12 Dining Arenas</span>
         </div>
+        
+        <!-- Dynamic Bill Requests alerts stack -->
+        <div id="bill-requests-alerts" class="flex flex-col gap-2.5 hidden animate-fadeIn">
+          <!-- Populated dynamically with pulsing crimson warning chips -->
+        </div>
+
+        <!-- Dynamic Table Occupancy Dashboard -->
+        <div class="grid grid-cols-3 gap-3 bg-surface-container-low/55 p-3 rounded-lg border border-outline-variant/10 text-center" id="table-occupancy-dashboard">
+          <div class="flex flex-col gap-0.5 py-1">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Occupied</span>
+            <h5 class="font-mono text-sm font-extrabold text-secondary" id="occupancy-occupied">0</h5>
+          </div>
+          <div class="flex flex-col gap-0.5 py-1 border-x border-outline-variant/15">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Vacant</span>
+            <h5 class="font-mono text-sm font-extrabold text-emerald-600" id="occupancy-vacant">12</h5>
+          </div>
+          <div class="flex flex-col gap-0.5 py-1">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Total</span>
+            <h5 class="font-mono text-sm font-extrabold text-primary" id="occupancy-total">12</h5>
+          </div>
+        </div>
+
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="table-management-grid">
           <!-- Dynamically populated table cards -->
         </div>
@@ -379,6 +399,27 @@
         
         <div class="max-h-80 overflow-y-auto pr-1 flex flex-col gap-3.5" id="inventory-list-container">
           <!-- Dynamically drawn items row with custom stock check switches -->
+        </div>
+      </section>
+
+      <!-- RECEIPT ARCHIVE ENCLAVE -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm mt-1">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px] text-secondary">receipt_long</span>
+            <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Receipt Archive</h4>
+          </div>
+          <span class="text-[9px] text-on-surface-variant font-mono uppercase bg-secondary-fixed text-primary px-2 py-0.5 rounded font-bold" id="archive-count">0 RECEIPTS</span>
+        </div>
+        
+        <!-- SEARCH ARCHIVE BOX -->
+        <div class="relative flex items-center bg-white border border-outline-variant/35 rounded-lg px-3 py-2 focus-within:border-secondary transition-all">
+          <span class="material-symbols-outlined text-sm text-on-surface-variant/60 mr-2">search</span>
+          <input type="text" id="archive-search-input" placeholder="Search Receipt ID, Table, or Guest..." class="w-full bg-transparent border-0 p-0 text-xs focus:ring-0 focus:outline-none text-primary placeholder-on-surface-variant/60" oninput="renderArchiveList()"/>
+        </div>
+        
+        <div class="max-h-80 overflow-y-auto pr-1 flex flex-col gap-3" id="archive-list-container">
+          <!-- Dynamically drawn receipt rows -->
         </div>
       </section>
 
@@ -431,6 +472,76 @@
 
   </main>
 
+  <!-- RECEIPT DETAIL MODAL OVERLAY -->
+  <div id="receipt-detail-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-lg bg-surface p-6 rounded-2xl flex flex-col gap-5 border border-outline-variant/35 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+      <button class="absolute top-4 right-4 text-on-surface-variant hover:text-primary transition-colors active:scale-90" onclick="closeReceiptModal()">
+        <span class="material-symbols-outlined text-xl">close</span>
+      </button>
+      
+      <div class="text-center flex flex-col gap-1 border-b border-outline-variant/20 pb-3">
+        <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-semibold">GASTRONOMY ARCHIVE RECORD</p>
+        <h3 class="font-display-lg-mobile text-lg font-bold text-primary" id="modal-receipt-id">GP-20260601-000</h3>
+        <p class="text-[10px] text-on-surface-variant/80 font-mono" id="modal-receipt-meta">Table 8 • 02:44 PM • Santo</p>
+      </div>
+
+      <!-- Printable Invoice Wrapper -->
+      <div id="receipt-invoice-print-area" class="bg-white p-6 border border-outline-variant/15 rounded-xl shadow-sm text-xs font-sans text-primary relative overflow-hidden">
+        <!-- Botanical elegant decorative top banner -->
+        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary to-secondary-fixed"></div>
+        
+        <div class="text-center flex flex-col gap-1 mt-1 mb-5">
+          <h2 class="font-serif text-base font-extrabold tracking-tight" style="font-family: 'Playfair Display', serif;">THE GRAND PALACE</h2>
+          <p class="text-[8px] text-on-surface-variant/70 uppercase tracking-widest">Royal Heritage Gastronomy Suite</p>
+          <div class="h-[1px] w-2/3 mx-auto bg-outline-variant/20 my-1"></div>
+        </div>
+
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-primary/20 text-[9px] font-label-caps font-bold uppercase tracking-wider text-secondary">
+              <th class="pb-2">Menu Description</th>
+              <th class="pb-2 text-center w-12">Qty</th>
+              <th class="pb-2 text-right w-16">Price</th>
+            </tr>
+          </thead>
+          <tbody id="modal-receipt-items" class="divide-y divide-outline-variant/10 text-on-surface-variant">
+            <!-- Populated dynamically -->
+          </tbody>
+        </table>
+
+        <div class="mt-4 pt-3 border-t border-primary/10 flex flex-col gap-1.5 font-mono text-[10px]">
+          <div class="flex justify-between">
+            <span class="text-on-surface-variant/70">Subtotal:</span>
+            <span id="modal-receipt-subtotal">₹0.00</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-on-surface-variant/70">GST (5%):</span>
+            <span id="modal-receipt-tax">₹0.00</span>
+          </div>
+          <div class="flex justify-between border-t border-dashed border-outline-variant/35 pt-1.5 text-xs text-primary font-bold">
+            <span>Grand Total:</span>
+            <span id="modal-receipt-total" class="text-secondary">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="mt-5 text-center flex flex-col gap-0.5 text-[8.5px] text-on-surface-variant/60 border-t border-outline-variant/20 pt-3">
+          <p class="font-bold uppercase tracking-widest text-primary/70">Payment Settled Via <span id="modal-receipt-method">Counter</span></p>
+          <p class="italic">Thank you for dining in our palatial halls.</p>
+          <p class="mt-1 font-mono text-[7.5px] opacity-75" id="modal-receipt-footer-session">Session ID: SESS-1234</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mt-1">
+        <button class="border border-outline-variant/30 text-on-surface-variant font-bold py-2.5 rounded-lg active:scale-95 transition-all text-center text-xs flex items-center justify-center gap-1.5 hover:border-secondary hover:text-secondary" onclick="closeReceiptModal()">
+          <span class="material-symbols-outlined text-sm">arrow_back</span> Close
+        </button>
+        <button class="bg-primary text-white font-bold py-2.5 rounded-lg active:scale-95 transition-all text-center text-xs flex items-center justify-center gap-1.5 hover:opacity-90 shadow-sm" id="btn-download-pdf">
+          <span class="material-symbols-outlined text-sm">download</span> Download PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- SYNTHETIC GOLD CHIME NOTIFICATION SOUND GENERATOR -->
   <script>
     /**
@@ -475,10 +586,98 @@
         console.warn("Audio Context chime failed:", e);
       }
     }
+
+    function playNewOrderChime() {
+      playGoldChime();
+    }
+
+    function playReadyOrderChime() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+        
+        // Happy success ascending arpeggio C5 -> E5 -> G5 -> C6
+        const notes = [
+          { freq: 523.25, delay: 0 },    // C5
+          { freq: 659.25, delay: 0.08 }, // E5
+          { freq: 783.99, delay: 0.16 }, // G5
+          { freq: 1046.50, delay: 0.24 } // C6
+        ];
+        
+        notes.forEach(note => {
+          const t = now + note.delay;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(note.freq, t);
+          gain.gain.setValueAtTime(0.0, t);
+          gain.gain.linearRampToValueAtTime(0.06, t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.5);
+        });
+      } catch (e) {
+        console.warn("Audio Context ready chime failed:", e);
+      }
+    }
+
+    function playDelayedOrderChime() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+        
+        // Caution descending warning tones A3 (220Hz) -> G#3 (207.65Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(220.00, now);
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.4);
+        
+        setTimeout(() => {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = "sine";
+          osc2.frequency.setValueAtTime(207.65, ctx.currentTime);
+          gain2.gain.setValueAtTime(0.12, ctx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(ctx.currentTime);
+          osc2.stop(ctx.currentTime + 0.5);
+        }, 250);
+      } catch (e) {
+        console.warn("Audio Context delayed chime failed:", e);
+      }
+    }
   </script>
 
   <!-- DASHBOARD ORCHESTRATION JS -->
   <script>
+    function formatTimestampWithBadge(timestamp) {
+      if (!timestamp) return "";
+      let formatted = timestamp;
+      let badgeHtml = "";
+      if (timestamp.includes("[UPI]")) {
+        formatted = timestamp.replace("[UPI]", "").trim();
+        badgeHtml = `<span class="bg-blue-100 border border-blue-200 text-blue-700 px-2 py-0.5 rounded font-bold text-[8.5px] uppercase ml-1.5 shadow-sm">UPI Paid</span>`;
+      } else if (timestamp.includes("[Counter]")) {
+        formatted = timestamp.replace("[Counter]", "").trim();
+        badgeHtml = `<span class="bg-amber-100 border border-amber-200 text-amber-700 px-2 py-0.5 rounded font-bold text-[8.5px] uppercase ml-1.5 shadow-sm">Counter</span>`;
+      }
+      return `<span class="text-[8px] bg-primary/5 border border-outline-variant/30 text-on-surface-variant font-mono px-1.5 py-0.2 rounded font-bold">${formatted}</span>${badgeHtml}`;
+    }
+
     // State management object
     const Dashboard = {
       menu: [],
@@ -521,9 +720,11 @@
         window.supabaseClient
           .channel("realtime:owner_orders")
           .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, async (payload) => {
-            console.log("🔥 Realtime: Owner orders update received!");
+            console.log("🔥 Realtime: Owner orders update received!", payload);
             if (payload.eventType === "INSERT") {
-              playGoldChime();
+              playNewOrderChime();
+            } else if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "Ready" && payload.old && payload.old.status !== "Ready") {
+              playReadyOrderChime();
             }
             await syncLocalData();
             renderDashboard();
@@ -564,8 +765,11 @@
         // Subscribe to table sessions changes in realtime
         window.supabaseClient
           .channel("realtime:owner_table_sessions")
-          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, async () => {
-            console.log("🔥 Realtime: Seated guest session update received!");
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, async (payload) => {
+            console.log("🔥 Realtime: Seated guest session update received!", payload);
+            if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "bill_requested" && payload.old && payload.old.status !== "bill_requested") {
+              playNewOrderChime();
+            }
             await syncLocalData();
             renderDashboard();
           })
@@ -696,6 +900,7 @@
       renderTableManagementGrid();
       renderKitchenOrders();
       renderFeedbackFeed();
+      renderArchiveList();
     }
 
     /**
@@ -1103,8 +1308,8 @@
                 <span class="text-[9px] bg-secondary/15 text-secondary px-2.5 py-0.5 rounded-full font-bold font-mono tracking-wide shrink-0">
                   Table ${o.tableNumber}
                 </span>
-                <span class="text-[8px] bg-primary/5 border border-outline-variant/30 text-on-surface-variant font-mono px-1.5 py-0.2 rounded font-bold">${o.timestamp}</span>
-                <span class="text-[8.5px] px-2 py-0.5 rounded font-mono font-bold tracking-wider ${timerBg}">
+                ${formatTimestampWithBadge(o.timestamp)}
+                <span class="order-stopwatch text-[8.5px] px-2 py-0.5 rounded font-mono font-bold tracking-wider ${timerBg}" data-created-at="${createdTime}" data-order-id="${o.id}">
                   ⏱️ ${durationStr}
                 </span>
                 ${warningBadge}
@@ -1211,6 +1416,8 @@
       const order = Dashboard.orders.find(o => o.id === orderId);
       if (!order) return;
       
+      const cleanTimestamp = order.timestamp.replace(/\[(UPI|Counter)\]/g, "").trim();
+      
       const itemsList = order.items.map(i => `
         <tr>
           <td style="text-align: left; padding: 6px 0; font-weight: bold; border-bottom: 1px dotted #ccc;">${i.quantity}x ${i.name}</td>
@@ -1238,7 +1445,7 @@
             <div class="divider"></div>
             <div class="meta"><strong>ORDER ID:</strong> ${orderId}</div>
             <div class="meta"><strong>TABLE:</strong> Table ${order.tableNumber}</div>
-            <div class="meta"><strong>DATE:</strong> ${order.date} | ${order.timestamp}</div>
+            <div class="meta"><strong>DATE:</strong> ${order.date} | ${cleanTimestamp}</div>
             <div class="divider"></div>
             <table>
               <thead>
@@ -1272,6 +1479,53 @@
       if (!container) return;
       container.innerHTML = "";
 
+      let occupied = 0;
+      const billingSessions = [];
+
+      for (let t = 1; t <= 12; t++) {
+        const tableNum = String(t);
+        const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
+        if (activeSess) {
+          occupied++;
+          if (activeSess.status === "bill_requested") {
+            billingSessions.push(activeSess);
+          }
+        }
+      }
+
+      const vacant = 12 - occupied;
+      const occupiedEl = document.getElementById("occupancy-occupied");
+      const vacantEl = document.getElementById("occupancy-vacant");
+      const totalEl = document.getElementById("occupancy-total");
+      if (occupiedEl) occupiedEl.textContent = occupied;
+      if (vacantEl) vacantEl.textContent = vacant;
+      if (totalEl) totalEl.textContent = "12";
+
+      // Render Bill Request Alerts
+      const billAlertsContainer = document.getElementById("bill-requests-alerts");
+      if (billAlertsContainer) {
+        billAlertsContainer.innerHTML = "";
+        if (billingSessions.length > 0) {
+          billAlertsContainer.classList.remove("hidden");
+          billingSessions.forEach(s => {
+            const alertDiv = document.createElement("div");
+            alertDiv.className = "flex justify-between items-center bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-primary text-xs font-semibold animate-pulse";
+            alertDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm text-red-600 animate-bounce">receipt_long</span>
+                <span><strong>Table ${s.table_number}</strong> has requested their bill!</span>
+              </div>
+              <button class="bg-red-600 text-white font-bold px-3 py-1.5 text-[8.5px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider hover:bg-red-700 shadow-sm border border-red-500/20" onclick="clearOwnerTable('${s.table_number}')">
+                Settle & Clear
+              </button>
+            `;
+            billAlertsContainer.appendChild(alertDiv);
+          });
+        } else {
+          billAlertsContainer.classList.add("hidden");
+        }
+      }
+
       for (let t = 1; t <= 12; t++) {
         const tableNum = String(t);
         
@@ -1304,7 +1558,10 @@
         let statusClass = "bg-neutral-100 text-neutral-500 border-neutral-300";
         
         if (activeSess) {
-          if (activeOrders.length > 0) {
+          if (activeSess.status === "bill_requested") {
+            status = "Bill Requested";
+            statusClass = "bg-red-100 text-red-700 border-red-300 font-extrabold animate-pulse";
+          } else if (activeOrders.length > 0) {
             status = "Waiting Food";
             statusClass = "bg-amber-100 text-amber-700 border-amber-300 animate-pulse font-bold";
           } else if (hasCart) {
@@ -1319,8 +1576,9 @@
           }
         }
 
+        const isBillReq = activeSess && activeSess.status === "bill_requested";
         const card = document.createElement("div");
-        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${status !== 'Vacant' ? 'border-secondary/40 animate-[pulse_6s_infinite]' : 'border-outline-variant/20'}`;
+        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${status !== 'Vacant' ? (isBillReq ? 'border-red-500 bg-red-50/10 animate-[pulse_3s_infinite]' : 'border-secondary/40 animate-[pulse_6s_infinite]') : 'border-outline-variant/20'}`;
 
         let detailsHtml = "";
         let actionButton = "";
@@ -1336,7 +1594,7 @@
             <div class="flex flex-col gap-1 text-[10px] text-on-surface-variant">
               <div><span class="text-on-surface-variant/60">Session:</span> <span class="font-mono text-secondary font-bold font-mono">${activeSess.session_id}</span></div>
               <div class="truncate"><span class="text-on-surface-variant/60">Guests:</span> <span class="font-bold">${guestCount}</span> <span class="text-[8.5px] opacity-75">(${guestNames.join(', ') || 'Anonymous'})</span></div>
-              <div><span class="text-on-surface-variant/60">Duration:</span> <span class="font-mono font-semibold">${durationStr}</span></div>
+              <div><span class="text-on-surface-variant/60">Duration:</span> <span class="table-stopwatch font-mono font-semibold" data-started-at="${started.getTime()}">${durationStr}</span></div>
             </div>
           `;
 
@@ -1369,29 +1627,256 @@
      * Clear / Settle Table sessions and active carts
      */
     async function clearOwnerTable(tableNum) {
-      if (confirm(`Are you sure you want to clear and settle Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
+      // Find active session
+      const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
+      if (!activeSess) {
+        alert("No active session found on Table " + tableNum);
+        return;
+      }
+
+      if (confirm(`Are you sure you want to clear and settle Table ${tableNum}? This closes active dining session, clears carts, compiles the receipt, and releases the table.`)) {
         try {
+          // Generate and save receipt
+          const sessionOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id));
+          
+          if (sessionOrders.length > 0) {
+            // Consolidate items
+            const consolidated = {};
+            let subtotal = 0;
+            let paymentMethod = "Counter";
+
+            sessionOrders.forEach(o => {
+              if (o.timestamp && o.timestamp.includes("[")) {
+                const match = o.timestamp.match(/\[(.*?)\]/);
+                if (match) paymentMethod = match[1];
+              }
+
+              o.items.forEach(i => {
+                if (consolidated[i.name]) {
+                  consolidated[i.name].quantity += i.quantity;
+                } else {
+                  consolidated[i.name] = {
+                    name: i.name,
+                    quantity: i.quantity,
+                    price: i.price || (Dashboard.menu.find(m => m.name === i.name) || { price: 0 }).price
+                  };
+                }
+                subtotal += (i.price || 0) * i.quantity;
+              });
+            });
+
+            const itemsArray = Object.values(consolidated);
+            
+            // Format receipt date & ID
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+            const randomNum = String(Math.floor(100 + Math.random() * 900));
+            const receiptId = `GP-${dateStr}-${randomNum}`;
+
+            const guestNames = activeSess.session_members ? activeSess.session_members.map(m => m.guest_name) : [];
+
+            const receipt = {
+              id: receiptId,
+              tableNumber: tableNum,
+              sessionId: activeSess.session_id,
+              date: now.toLocaleDateString(),
+              time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              guests: guestNames.join(", ") || "Anonymous",
+              items: itemsArray,
+              subtotal: subtotal,
+              taxes: subtotal * 0.05, // 5% GST
+              grandTotal: subtotal * 1.05,
+              paymentMethod: paymentMethod
+            };
+
+            const existingReceipts = window.gpStorage.getReceipts() || [];
+            existingReceipts.push(receipt);
+            window.gpStorage.saveReceipts(existingReceipts);
+          }
+
           // Clear active session and its shared carts
           await window.cartService.clearTableSessions(tableNum);
           
           playGoldChime();
           await syncLocalData();
           renderDashboard();
+          
+          // Re-render archive list
+          renderArchiveList();
         } catch (e) {
           console.error("Error clearing table:", e);
         }
       }
     }
 
-    // 1-second dynamic re-render stopwatch interval loop
+    // Start stopwatch live timer update loop (lightweight targeted DOM selector updates)
     setInterval(() => {
-      if (Dashboard.isAuthenticated) {
-        if (Dashboard.orders.length > 0) {
-          renderKitchenOrders();
+      if (!Dashboard.isAuthenticated) return;
+      
+      // Update order stopwatches in real-time
+      document.querySelectorAll(".order-stopwatch").forEach((el) => {
+        const createdTime = parseInt(el.getAttribute("data-created-at"));
+        const orderId = el.getAttribute("data-order-id");
+        if (!isNaN(createdTime)) {
+          const elapsedMs = Date.now() - createdTime;
+          const elapsedMins = Math.max(0, Math.floor(elapsedMs / 60000));
+          const elapsedSecs = Math.max(0, Math.floor((elapsedMs % 60000) / 1000));
+          
+          el.textContent = `⏱️ ${elapsedMins}m ${elapsedSecs}s`;
+          
+          // Play delayed caution alert tones exactly once per order at 10 minutes
+          if (elapsedMins >= 10 && orderId) {
+            if (!window.alertedDelays) {
+              window.alertedDelays = new Set();
+            }
+            if (!window.alertedDelays.has(orderId)) {
+              window.alertedDelays.add(orderId);
+              playDelayedOrderChime();
+            }
+          }
+
+          // Dynamically adjust warning bottleneck thresholds to highlight delayed orders instantly
+          const card = el.closest(".bg-white");
+          if (card) {
+            if (elapsedMins >= 20) {
+              card.classList.add("border-red-500", "bg-red-50/20");
+              el.className = `order-stopwatch text-[8.5px] px-2 py-0.5 rounded font-mono font-bold tracking-wider bg-red-100 text-red-700 font-extrabold animate-pulse`;
+            } else if (elapsedMins >= 10) {
+              card.classList.add("border-yellow-500");
+              el.className = `order-stopwatch text-[8.5px] px-2 py-0.5 rounded font-mono font-bold tracking-wider bg-yellow-100 text-yellow-700 font-bold animate-pulse`;
+            }
+          }
         }
-        renderTableManagementGrid();
-      }
+      });
+
+      // Update table session stopwatches in real-time
+      document.querySelectorAll(".table-stopwatch").forEach((el) => {
+        const startedTime = parseInt(el.getAttribute("data-started-at"));
+        if (!isNaN(startedTime)) {
+          const diffMs = Date.now() - startedTime;
+          const diffMins = Math.floor(diffMs / 60000);
+          el.textContent = `${diffMins} mins`;
+        }
+      });
     }, 1000);
+
+    // Archive Search & Prints
+    function renderArchiveList() {
+      const container = document.getElementById("archive-list-container");
+      const counterEl = document.getElementById("archive-count");
+      const searchQuery = document.getElementById("archive-search-input") ? document.getElementById("archive-search-input").value.toLowerCase() : "";
+      
+      if (!container) return;
+      container.innerHTML = "";
+      
+      const receipts = window.gpStorage.getReceipts() || [];
+      if (counterEl) counterEl.textContent = `${receipts.length} RECEIPTS`;
+      
+      const filtered = receipts.filter(r => {
+        const matchId = r.id.toLowerCase().includes(searchQuery);
+        const matchTable = `table ${r.tableNumber}`.toLowerCase().includes(searchQuery) || String(r.tableNumber).toLowerCase().includes(searchQuery);
+        const matchGuests = r.guests.toLowerCase().includes(searchQuery);
+        const matchDate = r.date.toLowerCase().includes(searchQuery);
+        return matchId || matchTable || matchGuests || matchDate;
+      });
+      
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="py-6 text-center text-xs text-on-surface-variant/80 border border-dashed border-outline-variant/30 rounded-xl bg-white/40">
+            No archived receipts found.
+          </div>
+        `;
+        return;
+      }
+      
+      filtered.slice().reverse().forEach(r => {
+        const row = document.createElement("div");
+        row.className = "bg-white p-3 rounded-lg border border-outline-variant/15 flex justify-between items-center text-[10px] shadow-sm hover:border-secondary transition-colors";
+        row.innerHTML = `
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-mono font-bold text-primary text-xs leading-none">${r.id}</span>
+              <span class="text-[8px] bg-secondary/20 text-secondary px-1.5 py-0.5 rounded font-mono font-bold leading-none">T-${String(r.tableNumber).padStart(2, '0')}</span>
+              <span class="text-[8px] bg-primary/5 text-primary px-1.5 py-0.5 rounded font-mono leading-none">${r.paymentMethod}</span>
+            </div>
+            <p class="text-[9.5px] text-on-surface-variant/80 truncate mt-1">Guests: <strong>${r.guests}</strong></p>
+            <p class="text-[8.5px] text-on-surface-variant/60 font-mono">${r.date} • ${r.time}</p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0 ml-2">
+            <span class="font-mono font-bold text-secondary text-[11px] mr-1">₹${r.grandTotal.toFixed(2)}</span>
+            <button class="bg-secondary-fixed/60 hover:bg-secondary text-primary hover:text-white p-1 rounded transition-colors active:scale-95 border border-outline-variant/20 flex items-center justify-center" onclick="viewReceiptDetails('${r.id}')" title="View Bill">
+              <span class="material-symbols-outlined text-[14px]">visibility</span>
+            </button>
+            <button class="bg-primary text-white p-1 rounded transition-colors active:scale-95 hover:opacity-90 flex items-center justify-center" onclick="downloadReceiptPdf('${r.id}')" title="Download PDF">
+              <span class="material-symbols-outlined text-[14px]">download</span>
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function viewReceiptDetails(receiptId) {
+      const receipts = window.gpStorage.getReceipts() || [];
+      const r = receipts.find(x => x.id === receiptId);
+      if (!r) return;
+      
+      document.getElementById("modal-receipt-id").textContent = r.id;
+      document.getElementById("modal-receipt-meta").textContent = `Table ${r.tableNumber} • ${r.time} • ${r.date}`;
+      document.getElementById("modal-receipt-subtotal").textContent = `₹${r.subtotal.toFixed(2)}`;
+      document.getElementById("modal-receipt-tax").textContent = `₹${r.taxes.toFixed(2)}`;
+      document.getElementById("modal-receipt-total").textContent = `₹${r.grandTotal.toFixed(2)}`;
+      document.getElementById("modal-receipt-method").textContent = r.paymentMethod;
+      document.getElementById("modal-receipt-footer-session").textContent = `Session: ${r.sessionId}`;
+      
+      const itemsContainer = document.getElementById("modal-receipt-items");
+      itemsContainer.innerHTML = "";
+      r.items.forEach(i => {
+        const tr = document.createElement("tr");
+        tr.className = "border-b border-outline-variant/5 text-[11px]";
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-primary">${i.name}</td>
+          <td class="py-2.5 text-center font-mono text-on-surface-variant/80">${i.quantity}</td>
+          <td class="py-2.5 text-right font-mono text-primary font-semibold">₹${((i.price || 0) * i.quantity).toFixed(2)}</td>
+        `;
+        itemsContainer.appendChild(tr);
+      });
+      
+      const downloadBtn = document.getElementById("btn-download-pdf");
+      if (downloadBtn) {
+        downloadBtn.onclick = () => downloadReceiptPdf(r.id);
+      }
+      
+      document.getElementById("receipt-detail-modal").classList.remove("hidden");
+    }
+
+    function closeReceiptModal() {
+      document.getElementById("receipt-detail-modal").classList.add("hidden");
+    }
+
+    function downloadReceiptPdf(receiptId) {
+      const receipts = window.gpStorage.getReceipts() || [];
+      const r = receipts.find(x => x.id === receiptId);
+      if (!r) return;
+      
+      viewReceiptDetails(receiptId);
+      
+      const element = document.getElementById("receipt-invoice-print-area");
+      const opt = {
+        margin:       [10, 10, 10, 10],
+        filename:     `${r.id}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      
+      playNewOrderChime();
+      
+      html2pdf().set(opt).from(element).save();
+    }
   </script>
 </body>
 </html>

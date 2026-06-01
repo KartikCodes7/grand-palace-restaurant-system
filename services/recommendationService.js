@@ -39,12 +39,35 @@ class RecommendationService {
    * Fetches personalized AI-recommended items based on active preferences.
    * Filters out any out-of-stock selections.
    */
-  async getPersonalizedRecommendations(menuCatalog, categoryPreference = "All") {
+  async getPersonalizedRecommendations(menuCatalog, categoryPreference = "All", cartItems = {}) {
     return new Promise((resolve) => {
       setTimeout(() => {
         let candidates = [];
+
+        // Check if cart has spicy items to prioritize Fresh Lime Soda & Mango Mastani
+        const itemIds = Object.keys(cartItems || {});
+        const spicyKeywords = ["masala", "chilli", "kolhapuri", "schezwan", "spicy", "crispy", "tadka", "dragon", "chili", "fiery"];
+        let hasSpicy = false;
+        for (const id of itemIds) {
+          const item = menuCatalog.find(m => m.id === id);
+          if (item) {
+            const nameLower = item.name.toLowerCase();
+            const descLower = (item.description || "").toLowerCase();
+            if (spicyKeywords.some(keyword => nameLower.includes(keyword) || descLower.includes(keyword))) {
+              hasSpicy = true;
+              break;
+            }
+          }
+        }
+
+        if (hasSpicy) {
+          // Prepend Fresh Lime Soda (bv_1) and Mango Mastani (ds_1) as priority suggestions
+          const cooling = menuCatalog.filter(item => (item.id === "bv_1" || item.id === "ds_1") && item.inStock !== false);
+          candidates = [...cooling];
+        }
+        
         if (categoryPreference !== "All") {
-          candidates = menuCatalog.filter(item => item.category === categoryPreference);
+          candidates = [...candidates, ...menuCatalog.filter(item => item.category === categoryPreference)];
         }
         
         if (candidates.length < 3) {
@@ -59,6 +82,53 @@ class RecommendationService {
 
         resolve(uniqueCandidates.slice(0, 4));
       }, 50);
+    });
+  }
+
+  /**
+   * Evaluates active cart item names/descriptions for spicy keywords and suggests Fresh Lime Soda & Mango Mastani.
+   */
+  async getSpicySuggestions(menuCatalog, cartItems) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const itemIds = Object.keys(cartItems || {});
+        if (itemIds.length === 0) {
+          resolve(null);
+          return;
+        }
+
+        const spicyKeywords = ["masala", "chilli", "kolhapuri", "schezwan", "spicy", "crispy", "tadka", "dragon", "chili", "fiery"];
+        let hasSpicy = false;
+        let spicyItemName = "";
+
+        for (const id of itemIds) {
+          const item = menuCatalog.find(m => m.id === id);
+          if (item) {
+            const nameLower = item.name.toLowerCase();
+            const descLower = (item.description || "").toLowerCase();
+            if (spicyKeywords.some(keyword => nameLower.includes(keyword) || descLower.includes(keyword))) {
+              hasSpicy = true;
+              spicyItemName = item.name;
+              break;
+            }
+          }
+        }
+
+        if (hasSpicy) {
+          const limeSoda = menuCatalog.find(item => item.id === "bv_1" && item.inStock !== false);
+          const mangoMastani = menuCatalog.find(item => item.id === "ds_1" && item.inStock !== false);
+          
+          if (limeSoda || mangoMastani) {
+            resolve({
+              spicyItem: spicyItemName,
+              recommendations: [limeSoda, mangoMastani].filter(Boolean)
+            });
+            return;
+          }
+        }
+
+        resolve(null);
+      }, 30);
     });
   }
 

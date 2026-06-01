@@ -73,6 +73,11 @@ class OrderService {
       if (window.supabaseDbUpgraded) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
       }
+      
+      // Fallback temporal session isolation: Only show orders created after this local session started
+      if (activeSession.started_at && o.createdAt) {
+        return new Date(o.createdAt) >= new Date(activeSession.started_at);
+      }
       return true;
     });
   }
@@ -90,14 +95,20 @@ class OrderService {
       if (window.supabaseDbUpgraded) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
       }
+      
+      // Fallback temporal session isolation: Only show orders completed during this local session
+      if (activeSession.started_at && o.createdAt) {
+        return new Date(o.createdAt) >= new Date(activeSession.started_at);
+      }
       return true;
     });
   }
 
-  async submitOrder(items, totals, tableNumber = "5") {
+  async submitOrder(items, totals, tableNumber = "5", paymentMethod = "Counter") {
     const orderId = `ORD${Math.floor(100 + Math.random() * 900)}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const sessionId = window.cartService.getSessionId();
+    const timestampText = `${timestamp} [${paymentMethod}]`;
 
     if (window.supabaseEnabled) {
       try {
@@ -110,7 +121,7 @@ class OrderService {
           service_charge: totals.serviceCharge,
           total: totals.grandTotal,
           eta: "20 mins",
-          timestamp: timestamp
+          timestamp: timestampText
         };
 
         if (window.supabaseDbUpgraded) {
@@ -139,15 +150,16 @@ class OrderService {
         return this.ordersList.find(o => o.id === orderId);
       } catch (e) {
         console.error("Supabase order submit error, placing locally:", e);
-        return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
+        return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod);
       }
     } else {
-      return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
+      return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod);
     }
   }
 
-  submitOrderLocally(orderId, timestamp, items, totals, tableNumber) {
+  submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod = "Counter") {
     const sessionId = window.cartService.getSessionId();
+    const timestampText = `${timestamp} [${paymentMethod}]`;
     const newOrder = {
       id: orderId,
       sessionId: sessionId || null,
@@ -160,7 +172,7 @@ class OrderService {
       tableNumber: tableNumber,
       status: "Order Placed",
       eta: "20 mins",
-      timestamp: timestamp,
+      timestamp: timestampText,
       date: new Date().toLocaleDateString(),
       createdAt: new Date().toISOString(),
       history: [
