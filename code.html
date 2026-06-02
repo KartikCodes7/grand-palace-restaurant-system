@@ -816,14 +816,13 @@
       
       if (!active) {
         // No active session exists at this table (Vacant).
-        localStorage.removeItem("gp_guest_name");
-        window.cartService.setSessionId("");
+        if (window.cartService) window.cartService.resetLocalSessionCart();
         document.getElementById("guest-name-overlay").classList.remove("hidden");
       } else {
         // Active session exists!
         if (cachedSessionId !== active.session_id) {
           // This guest's browser is not associated with this active session!
-          localStorage.removeItem("gp_guest_name");
+          if (window.cartService) window.cartService.resetLocalSessionCart();
           window.cartService.setSessionId(active.session_id);
           document.getElementById("guest-name-overlay").classList.remove("hidden");
         } else {

@@ -1810,12 +1810,21 @@
      * Clear / Settle Table sessions and active carts
      */
     /**
-     * Complete Payment: Generates and archives the receipt, updates session status to paid
+     * Complete Payment: Generates and archives the receipt swaddled in double-payment protection locks
      */
     async function completePayment(tableNum) {
+      // 1. Thread-safe Double-Billing Gate
+      if (!window.paymentProcessingLocks) window.paymentProcessingLocks = {};
+      if (window.paymentProcessingLocks[tableNum]) {
+        console.warn(`Double-Billing Avoided: Settle request already executing for table ${tableNum}`);
+        return;
+      }
+      window.paymentProcessingLocks[tableNum] = true;
+
       // Find active session
       const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
       if (!activeSess) {
+        delete window.paymentProcessingLocks[tableNum];
         alert("No active session found on Table " + tableNum);
         return;
       }
@@ -1863,6 +1872,13 @@
 
         const guestNames = activeSess.session_members ? activeSess.session_members.map(m => m.guest_name) : [];
 
+        // 2. Align totals calculation with Guest portal (8% Tax + 10% Service Charge)
+        const taxRate = 0.08;
+        const serviceChargeRate = 0.10;
+        const tax = subtotal * taxRate;
+        const serviceCharge = subtotal * serviceChargeRate;
+        const grandTotal = subtotal + tax + serviceCharge;
+
         const receipt = {
           id: receiptId,
           tableNumber: tableNum,
@@ -1872,8 +1888,9 @@
           guests: guestNames.join(", ") || "Anonymous",
           items: itemsArray,
           subtotal: subtotal,
-          taxes: subtotal * 0.05, // 5% GST
-          grandTotal: subtotal * 1.05,
+          taxes: tax, // Aligned 8% Luxury Tax
+          serviceCharge: serviceCharge, // Aligned 10% Service Charge
+          grandTotal: grandTotal,
           paymentMethod: paymentMethod
         };
 
@@ -1889,9 +1906,9 @@
               table_number: tableNum,
               status: "Settled",
               subtotal: subtotal,
-              tax: subtotal * 0.05,
-              service_charge: 0,
-              total: subtotal * 1.05,
+              tax: tax,
+              service_charge: serviceCharge,
+              total: grandTotal,
               timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} [${paymentMethod}]`
             };
             if (window.supabaseDbUpgraded) {
@@ -1944,6 +1961,9 @@
       } catch (err) {
         console.error("Error processing payment:", err);
         alert("Failed to process payment: " + err.message);
+      } finally {
+        // Clear thread safe locks
+        delete window.paymentProcessingLocks[tableNum];
       }
     }
 
@@ -1980,7 +2000,8 @@
     }
 
     // Start stopwatch live timer update loop (lightweight targeted DOM selector updates)
-    setInterval(() => {
+    if (window.ownerStopwatchInterval) clearInterval(window.ownerStopwatchInterval);
+    window.ownerStopwatchInterval = setInterval(() => {
       if (!Dashboard.isAuthenticated) return;
       
       // Update order stopwatches in real-time

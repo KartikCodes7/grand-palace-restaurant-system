@@ -19,7 +19,8 @@ class CartService {
   }
 
   startQueueSyncLoop() {
-    setInterval(() => {
+    if (this.queueSyncInterval) clearInterval(this.queueSyncInterval);
+    this.queueSyncInterval = setInterval(() => {
       if (window.gpNetworkOnline && this.pendingSyncQueue && this.pendingSyncQueue.length > 0) {
         this.flushPendingSyncs();
       }
@@ -561,7 +562,7 @@ class CartService {
     }
 
     // 1. Optimistic Local Cache Update
-    this.cartData[itemId] = (this.cartData[itemId] || 0) + 1;
+    this.cartData[itemId] = Math.max(0, Math.floor((this.cartData[itemId] || 0) + 1));
     
     const existing = this.sharedCartItems.find(i => i.table_number === tableNum && i.session_id === sessionId && i.menu_item_id === itemId && i.guest_name === guestName);
     if (existing) {
@@ -616,7 +617,7 @@ class CartService {
     // 1. Optimistic Local Cache Update
     if (!this.cartData[itemId]) return;
     
-    this.cartData[itemId]--;
+    this.cartData[itemId] = Math.max(0, Math.floor((this.cartData[itemId] || 0) - 1));
     const targetQty = this.cartData[itemId];
     if (targetQty <= 0) {
       delete this.cartData[itemId];
@@ -823,6 +824,14 @@ class CartService {
       active.status = "bill_requested";
       window.gpStorage.saveTableSessions(sessions);
     }
+  }
+
+  resetLocalSessionCart() {
+    this.cartData = {};
+    this.sharedCartItems = [];
+    localStorage.removeItem("gp_guest_name");
+    localStorage.removeItem("gp_current_session_id");
+    this.onChange();
   }
 }
 

@@ -244,6 +244,19 @@ class OrderService {
    * Manual timeline progress status updates by the proprietor
    */
   async updateOrderStatus(orderId, newStatus) {
+    await this.syncOrders();
+    const order = this.ordersList.find(o => o.id === orderId);
+    
+    if (order) {
+      const states = ["Order Placed", "Accepted", "Preparing", "Ready", "Served"];
+      const currentIdx = states.indexOf(order.status);
+      const targetIdx = states.indexOf(newStatus);
+      if (targetIdx !== -1 && targetIdx < currentIdx) {
+        console.warn(`Blocked invalid backwards state transition: ${order.status} -> ${newStatus}`);
+        return order;
+      }
+    }
+
     if (window.supabaseEnabled) {
       try {
         let eta = "20 mins";
