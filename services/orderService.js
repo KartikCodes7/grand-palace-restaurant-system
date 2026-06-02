@@ -20,8 +20,11 @@ class OrderService {
 
         if (error) throw error;
 
+        // Filter out settled receipts (they are for Receipt Archive, not food timelines)
+        const foodOrders = data.filter(order => order.status !== "Settled" && !order.id.startsWith("GP-"));
+
         // Map database naming schema back to client structures
-        this.ordersList = data.map((order) => {
+        this.ordersList = foodOrders.map((order) => {
           // Re-create history completed tags based on status
           const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served"];
           const currentIdx = statusOrder.indexOf(order.status);
@@ -53,10 +56,10 @@ class OrderService {
         });
       } catch (e) {
         console.error("Supabase orders sync error, using fallback storage:", e);
-        this.ordersList = window.gpStorage.getOrders();
+        this.ordersList = (window.gpStorage.getOrders() || []).filter(o => o.status !== "Settled" && !o.id.startsWith("GP-"));
       }
     } else {
-      this.ordersList = window.gpStorage.getOrders();
+      this.ordersList = (window.gpStorage.getOrders() || []).filter(o => o.status !== "Settled" && !o.id.startsWith("GP-"));
     }
   }
 

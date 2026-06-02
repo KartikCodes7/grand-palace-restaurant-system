@@ -11,7 +11,50 @@ class CartService {
     // Check if Supabase schema is upgraded
     window.supabaseDbUpgraded = false;
     this.schemaCheckPromise = this.checkSchemaUpgraded();
+
+    // Background offline cart sync retry queue
+    this.pendingSyncQueue = window.gpStorage.get("gp_pending_cart_syncs", []);
+    this.isSyncingQueue = false;
+    this.startQueueSyncLoop();
   }
+
+  startQueueSyncLoop() {
+    setInterval(() => {
+      if (window.gpNetworkOnline && this.pendingSyncQueue && this.pendingSyncQueue.length > 0) {
+        this.flushPendingSyncs();
+      }
+    }, 10000);
+  }
+
+  async queueCartSync(itemId, targetQty) {
+    if (!this.pendingSyncQueue) this.pendingSyncQueue = [];
+    this.pendingSyncQueue = this.pendingSyncQueue.filter(q => q.itemId !== itemId);
+    this.pendingSyncQueue.push({ itemId, targetQty, timestamp: Date.now() });
+    window.gpStorage.set("gp_pending_cart_syncs", this.pendingSyncQueue);
+    
+    if (window.gpNetworkOnline) {
+      this.flushPendingSyncs();
+    }
+  }
+
+  async flushPendingSyncs() {
+    if (this.isSyncingQueue) return;
+    this.isSyncingQueue = true;
+    
+    while (this.pendingSyncQueue && this.pendingSyncQueue.length > 0) {
+      const item = this.pendingSyncQueue[0];
+      try {
+        await this.syncItemQtyToSupabaseDirect(item.itemId, item.targetQty);
+        this.pendingSyncQueue.shift();
+        window.gpStorage.set("gp_pending_cart_syncs", this.pendingSyncQueue);
+      } catch (e) {
+        console.error("Flush pending sync failed for item:", item.itemId, e);
+        break;
+      }
+    }
+    this.isSyncingQueue = false;
+  }
+
 
   async checkSchemaUpgraded() {
     if (window.supabaseEnabled && window.supabaseClient) {
@@ -448,63 +491,65 @@ class CartService {
 
   async syncItemQtyToSupabase(itemId, targetQty) {
     if (!window.supabaseEnabled || !window.supabaseClient) return;
+    await this.queueCartSync(itemId, targetQty);
+  }
+
+  async syncItemQtyToSupabaseDirect(itemId, targetQty) {
+    if (!window.supabaseEnabled || !window.supabaseClient) return;
 
     const tableNum = this.getTableNumber();
     const guestName = this.getGuestName();
     const sessionId = this.getSessionId();
 
-    try {
-      let query = window.supabaseClient
-        .from("shared_carts")
-        .select("*")
-        .eq("table_number", tableNum)
-        .eq("guest_name", guestName)
-        .eq("menu_item_id", itemId);
+    let query = window.supabaseClient
+      .from("shared_carts")
+      .select("*")
+      .eq("table_number", tableNum)
+      .eq("guest_name", guestName)
+      .eq("menu_item_id", itemId);
 
-      if (window.supabaseDbUpgraded) {
-        query = query.eq("session_id", sessionId);
+    if (window.supabaseDbUpgraded) {
+      query = query.eq("session_id", sessionId);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error) throw error;
+
+    if (targetQty <= 0) {
+      if (data) {
+        const { error: delErr } = await window.supabaseClient
+          .from("shared_carts")
+          .delete()
+          .eq("id", data.id);
+        if (delErr) throw delErr;
       }
-
-      const { data, error } = await query.maybeSingle();
-      if (error) throw error;
-
-      if (targetQty <= 0) {
-        if (data) {
-          const { error: delErr } = await window.supabaseClient
+    } else {
+      if (data) {
+        if (data.quantity !== targetQty) {
+          const { error: updErr } = await window.supabaseClient
             .from("shared_carts")
-            .delete()
+            .update({ quantity: targetQty })
             .eq("id", data.id);
-          if (delErr) throw delErr;
+          if (updErr) throw updErr;
         }
       } else {
-        if (data) {
-          if (data.quantity !== targetQty) {
-            const { error: updErr } = await window.supabaseClient
-              .from("shared_carts")
-              .update({ quantity: targetQty })
-              .eq("id", data.id);
-            if (updErr) throw updErr;
-          }
-        } else {
-          const newCartRow = {
-            table_number: tableNum,
-            guest_name: guestName,
-            menu_item_id: itemId,
-            quantity: targetQty
-          };
-          if (window.supabaseDbUpgraded) {
-            newCartRow.session_id = sessionId;
-          }
-          const { error: insErr } = await window.supabaseClient
-            .from("shared_carts")
-            .insert([newCartRow]);
-          if (insErr) throw insErr;
+        const newCartRow = {
+          table_number: tableNum,
+          guest_name: guestName,
+          menu_item_id: itemId,
+          quantity: targetQty
+        };
+        if (window.supabaseDbUpgraded) {
+          newCartRow.session_id = sessionId;
         }
+        const { error: insErr } = await window.supabaseClient
+          .from("shared_carts")
+          .insert([newCartRow]);
+        if (insErr) throw insErr;
       }
-    } catch (e) {
-      console.error(`Supabase sync item qty error for ${itemId}:`, e);
     }
   }
+
 
   async addToCart(itemId) {
     const tableNum = this.getTableNumber();

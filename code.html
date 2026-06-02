@@ -216,6 +216,9 @@
     <!-- Table Dynamic Badge from QR Code -->
     <div class="flex items-center gap-3">
       <div id="table-guests-tray" class="hidden md:flex items-center -space-x-1.5 overflow-hidden"></div>
+      <span id="network-status-badge" class="text-[9px] bg-secondary/10 text-secondary px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Live Sync
+      </span>
       <span class="text-xs bg-secondary/15 text-secondary px-3 py-1.5 rounded-full font-label-caps font-bold"
         id="header-table-badge">Table 5</span>
     </div>
@@ -261,7 +264,7 @@
           onclick="navigateToSpecialItem()">
           <img
             class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-            id="special-dish-image" src="" alt="Special Dish" />
+            id="special-dish-image" src="" alt="Special Dish" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80';" />
           <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent"></div>
           <div class="relative z-10 p-6 max-w-sm text-white flex flex-col gap-3">
             <span
@@ -846,33 +849,182 @@
         document.getElementById("guest-name-overlay").classList.add("hidden");
         showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
         
-        // Setup session members listener reactively after joining
-        setupSessionMembersListener();
+        // Setup sync channels reactively after joining
+        subscribeToRealtimeChannels();
         
         window.onAppStateChanged();
       }
     }
 
-    let sessionMembersSubscription = null;
-    function setupSessionMembersListener() {
-      if (window.supabaseEnabled && window.supabaseClient) {
-        const currentSid = window.cartService.getSessionId();
-        if (currentSid) {
-          if (sessionMembersSubscription) {
-            window.supabaseClient.removeChannel(sessionMembersSubscription);
-          }
-          sessionMembersSubscription = window.supabaseClient
-            .channel("realtime:session_members_active")
-            .on("postgres_changes", { event: "*", schema: "public", table: "session_members", filter: `session_id=eq.${currentSid}` }, async (payload) => {
-              console.log("🔥 Realtime: Session members update received!", payload);
-              if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
-                showToast("GUEST JOINED", `${payload.new.guest_name} joined your dining table!`, "person");
-              }
-              await syncTableGuests();
-            })
-            .subscribe();
-        }
+    // Network status UI indicators (Scope 1)
+    function updateNetworkStatusUI() {
+      const badge = document.getElementById("network-status-badge");
+      if (!badge) return;
+      
+      if (window.gpNetworkOnline) {
+        badge.className = "text-[9px] bg-secondary/10 text-secondary px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm shrink-0";
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Live Sync`;
+      } else {
+        badge.className = "text-[9px] bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm animate-pulse border border-amber-200 shrink-0";
+        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Offline Mode`;
       }
+    }
+
+    async function checkNetworkConnection() {
+      if (navigator.onLine) {
+        if (window.supabaseEnabled && window.supabaseClient) {
+          try {
+            const { error } = await window.supabaseClient.from("orders").select("id").limit(1);
+            window.gpNetworkOnline = !error;
+          } catch (e) {
+            window.gpNetworkOnline = false;
+          }
+        } else {
+          window.gpNetworkOnline = true;
+        }
+      } else {
+        window.gpNetworkOnline = false;
+      }
+      updateNetworkStatusUI();
+    }
+
+    // Consolidated Realtime Channels with Memory Leak Protection (Scope 6)
+    let realtimeChannels = [];
+    function subscribeToRealtimeChannels() {
+      if (!window.supabaseEnabled || !window.supabaseClient) return;
+
+      // Unsubscribe all active channels first to prevent leaks
+      realtimeChannels.forEach(c => {
+        try {
+          window.supabaseClient.removeChannel(c);
+        } catch (e) {}
+      });
+      realtimeChannels = [];
+
+      // 1. Table sessions channel
+      const sessionChan = window.supabaseClient
+        .channel("realtime:table_sessions")
+        .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+          console.log("🔥 Realtime: Table sessions update received!", payload);
+          if (payload.eventType === "UPDATE") {
+            if (payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
+              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
+              setTimeout(() => {
+                localStorage.removeItem("gp_guest_name");
+                window.cartService.setSessionId("");
+                window.location.reload();
+              }, 3000);
+            }
+            await refreshData();
+            renderOrdersMonitor();
+          }
+          await syncTableGuests();
+        })
+        .subscribe();
+      realtimeChannels.push(sessionChan);
+
+      // 2. Active session members active channel
+      const currentSid = window.cartService.getSessionId();
+      if (currentSid) {
+        const membersChan = window.supabaseClient
+          .channel("realtime:session_members_active")
+          .on("postgres_changes", { event: "*", schema: "public", table: "session_members", filter: `session_id=eq.${currentSid}` }, async (payload) => {
+            console.log("🔥 Realtime: Session members update received!", payload);
+            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
+              showToast("GUEST JOINED", `${payload.new.guest_name} joined your dining table!`, "person");
+            }
+            await syncTableGuests();
+          })
+          .subscribe();
+        realtimeChannels.push(membersChan);
+      }
+
+      // 3. Shared carts channel
+      const cartsChan = window.supabaseClient
+        .channel("realtime:shared_carts")
+        .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+          console.log("🔥 Realtime: Shared Cart update received!", payload);
+          if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+            const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+            const name = item ? item.name : "an item";
+            showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
+          } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+            const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+            const name = item ? item.name : "an item";
+            showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
+          }
+          await window.cartService.syncSharedCart();
+          renderUI();
+        })
+        .subscribe();
+      realtimeChannels.push(cartsChan);
+
+      // 4. Menu stock updates channel
+      const stockChan = window.supabaseClient
+        .channel("realtime:menu_items")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
+          console.log("🔥 Realtime: Menu items updated!");
+          await refreshData();
+          renderUI();
+        })
+        .subscribe();
+      realtimeChannels.push(stockChan);
+
+      // 5. Orders channel
+      const ordersChan = window.supabaseClient
+        .channel("realtime:orders")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
+          console.log("🔥 Realtime: Order status changed!");
+          await refreshData();
+          renderUI();
+          if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
+            if (window.promptFeedbackOverlay) {
+              window.promptFeedbackOverlay(payload.new.id);
+            }
+          }
+        })
+        .subscribe();
+      realtimeChannels.push(ordersChan);
+    }
+
+    // Dynamic heartbeat throttling (Scope 3)
+    let heartbeatIntervalId = null;
+    function startDynamicHeartbeat() {
+      if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
+      
+      const intervalMs = window.gpNetworkOnline ? 30000 : 5000;
+      console.log(`⏱️ Dynamic Heartbeat: Polling loop interval scheduled at ${intervalMs / 1000}s.`);
+      
+      heartbeatIntervalId = setInterval(async () => {
+        if (window.supabaseEnabled || !window.gpNetworkOnline) {
+          const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
+
+          await refreshData();
+          await syncTableGuests();
+
+          const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
+          if (activeBefore !== activeAfter) {
+            renderUI();
+
+            App.activeOrders.forEach(o => {
+              if (o.status === "Served") {
+                if (window.promptFeedbackOverlay) {
+                  window.promptFeedbackOverlay(o.id);
+                }
+              }
+            });
+            App.pastOrders.forEach(o => {
+              const parsedBefore = JSON.parse(activeBefore);
+              const wasActive = parsedBefore.find(x => x.id === o.id);
+              if (wasActive) {
+                if (window.promptFeedbackOverlay) {
+                  window.promptFeedbackOverlay(o.id);
+                }
+              }
+            });
+          }
+        }
+      }, intervalMs);
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
@@ -885,7 +1037,7 @@
         };
       }
 
-      // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
+      // 1. Resolve Table Number from QR URL parameters
       loadTableSession();
 
       // 1.5. Validate Guest Group-Dining Session
@@ -922,119 +1074,34 @@
         });
       }
 
-      // 7. Connect live Supabase Realtime socket sync channels
-      if (window.supabaseEnabled && window.supabaseClient) {
-        // Subscribe to dynamic table session updates
-        window.supabaseClient
-          .channel("realtime:table_sessions")
-          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-            console.log("🔥 Realtime: Table sessions update received!", payload);
-            if (payload.eventType === "UPDATE") {
-              if (payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
-                showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
-                setTimeout(() => {
-                  localStorage.removeItem("gp_guest_name");
-                  window.cartService.setSessionId("");
-                  window.location.reload();
-                }, 3000);
-              }
-              await refreshData();
-              renderOrdersMonitor();
-            }
-            await syncTableGuests();
-          })
-          .subscribe();
+      // 7. Initialize connectivity checker and sync channels
+      window.gpNetworkOnline = navigator.onLine;
+      updateNetworkStatusUI();
+      await checkNetworkConnection();
+      subscribeToRealtimeChannels();
+      startDynamicHeartbeat();
 
-        // Initial setup for session members listener
-        setupSessionMembersListener();
-
-        // Subscribe to dynamic group shared cart actions
-        window.supabaseClient
-          .channel("realtime:shared_carts")
-          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-            console.log("🔥 Realtime: Shared Cart update received!", payload);
-            
-            // Pop up botanical alerts when other table guests execute additions
-            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-              const name = item ? item.name : "an item";
-              showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
-            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-              const name = item ? item.name : "an item";
-              showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
-            }
-            
-            await window.cartService.syncSharedCart();
-            renderUI();
-          })
-          .subscribe();
-
-        // Subscribe to dynamic stock/availability changes in menu
-        window.supabaseClient
-          .channel("realtime:menu_items")
-          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
-            console.log("🔥 Realtime: Menu items updated!");
-            await refreshData();
-            renderUI();
-          })
-          .subscribe();
-
-        // Subscribe to dynamic kitchen dispatch updates in orders timeline
-        window.supabaseClient
-          .channel("realtime:orders")
-          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
-            console.log("🔥 Realtime: Order status changed!");
-            await refreshData();
-            renderUI();
-
-            // Auto prompt feedback modal overlay upon Served
-            if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
-              if (window.promptFeedbackOverlay) {
-                window.promptFeedbackOverlay(payload.new.id);
-              }
-            }
-          })
-          .subscribe();
-      }
-
-      // 8. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
-      setInterval(async () => {
-        if (window.supabaseEnabled) {
-          const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-
-          await refreshData();
-          await syncTableGuests();
-
-          const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-          if (activeBefore !== activeAfter) {
-            renderUI();
-
-            // If any active order transitioned to "Served", trigger the feedback overlay
-            App.activeOrders.forEach(o => {
-              if (o.status === "Served") {
-                if (window.promptFeedbackOverlay) {
-                  window.promptFeedbackOverlay(o.id);
-                }
-              }
-            });
-            // Also check past orders list for newly served bills
-            App.pastOrders.forEach(o => {
-              const parsedBefore = JSON.parse(activeBefore);
-              const wasActive = parsedBefore.find(x => x.id === o.id);
-              if (wasActive) {
-                if (window.promptFeedbackOverlay) {
-                  window.promptFeedbackOverlay(o.id);
-                }
-              }
-            });
-          }
+      // Listen to browser network changes
+      window.addEventListener("online", async () => {
+        window.gpNetworkOnline = true;
+        updateNetworkStatusUI();
+        await checkNetworkConnection();
+        subscribeToRealtimeChannels();
+        if (window.cartService && window.cartService.flushPendingSyncs) {
+          window.cartService.flushPendingSyncs();
         }
-      }, 5000);
+        startDynamicHeartbeat();
+      });
+
+      window.addEventListener("offline", () => {
+        window.gpNetworkOnline = false;
+        updateNetworkStatusUI();
+        startDynamicHeartbeat();
+      });
     });
 
     /**
-     * Resolves Dynamic Table Number from QR Url lookup
+     * Resolves Dynamic Table Number from QR Url lookup with boundary validations (Scope 10)
      */
     function loadTableSession() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1045,7 +1112,26 @@
           tabNum = match[1];
         }
       }
-      App.tableNumber = tabNum || "5";
+
+      const parsedTab = parseInt(tabNum);
+      if (isNaN(parsedTab) || parsedTab <= 0 || parsedTab > 12) {
+        tabNum = "5";
+      } else {
+        tabNum = String(parsedTab);
+      }
+
+      const lastTable = localStorage.getItem("gp_last_table_number");
+      if (lastTable && lastTable !== tabNum) {
+        // Table changed! Prevent previous customer data leaks (Scope 5)
+        localStorage.removeItem("gp_guest_name");
+        localStorage.removeItem("gp_current_session_id");
+        if (window.cartService) {
+          window.cartService.cartData = {};
+          window.cartService.sharedCartItems = [];
+        }
+      }
+      localStorage.setItem("gp_last_table_number", tabNum);
+      App.tableNumber = tabNum;
     }
 
     /**
@@ -1158,8 +1244,10 @@
       }
 
       // Context renders based on tabs
-      renderHomeSpecials();
-      renderHomeRecommendations();
+      if (App.activeTab === "home") {
+        renderHomeSpecials();
+        renderHomeRecommendations();
+      }
 
       if (App.activeTab === "menu") {
         renderMenuCatalog();
@@ -1175,7 +1263,8 @@
      */
     function renderHomeSpecials() {
       if (App.todaysSpecial) {
-        document.getElementById("special-dish-image").src = App.todaysSpecial.image;
+        const fallbackHero = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
+        document.getElementById("special-dish-image").src = App.todaysSpecial.image || fallbackHero;
         document.getElementById("special-dish-name").textContent = App.todaysSpecial.name;
         document.getElementById("special-dish-desc").textContent = App.todaysSpecial.description;
         document.getElementById("special-dish-price").textContent = `₹${App.todaysSpecial.price}`;
