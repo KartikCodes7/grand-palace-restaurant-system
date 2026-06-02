@@ -174,14 +174,14 @@
 
   <!-- Back-end API Services Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=6"></script>
-  <script src="shared/events.js?v=6"></script>
-  <script src="shared/supabase.js?v=6"></script>
-  <script src="services/menuService.js?v=6"></script>
-  <script src="services/cartService.js?v=6"></script>
-  <script src="services/orderService.js?v=6"></script>
-  <script src="services/feedbackService.js?v=6"></script>
-  <script src="services/recommendationService.js?v=6"></script>
+  <script src="shared/storage.js?v=8"></script>
+  <script src="shared/events.js?v=8"></script>
+  <script src="shared/supabase.js?v=8"></script>
+  <script src="services/menuService.js?v=8"></script>
+  <script src="services/cartService.js?v=8"></script>
+  <script src="services/orderService.js?v=8"></script>
+  <script src="services/feedbackService.js?v=8"></script>
+  <script src="services/recommendationService.js?v=8"></script>
 
   <!-- Notification Success Alert Toast -->
   <div id="toast-alert"
@@ -216,9 +216,6 @@
     <!-- Table Dynamic Badge from QR Code -->
     <div class="flex items-center gap-3">
       <div id="table-guests-tray" class="hidden md:flex items-center -space-x-1.5 overflow-hidden"></div>
-      <span id="network-status-badge" class="text-[9px] bg-secondary/10 text-secondary px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm">
-        <span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Live Sync
-      </span>
       <span class="text-xs bg-secondary/15 text-secondary px-3 py-1.5 rounded-full font-label-caps font-bold"
         id="header-table-badge">Table 5</span>
     </div>
@@ -264,7 +261,7 @@
           onclick="navigateToSpecialItem()">
           <img
             class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-            id="special-dish-image" src="" alt="Special Dish" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80';" />
+            id="special-dish-image" src="" alt="Special Dish" />
           <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent"></div>
           <div class="relative z-10 p-6 max-w-sm text-white flex flex-col gap-3">
             <span
@@ -428,8 +425,8 @@
 
         <button
           class="bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center"
-          onclick="openPaymentModal()">
-          PLACE ORDER & PAY
+          onclick="dispatchOrder()">
+          PLACE KITCHEN ORDER
         </button>
       </section>
     </div>
@@ -450,12 +447,6 @@
           TIMELINE</p>
         <div id="active-orders-timeline-container" class="flex flex-col gap-4">
           <!-- Populated dynamically with High-Fidelity status tracking timeline (or empty state) -->
-        </div>
-        <!-- Bill Request Action Row -->
-        <div id="bill-request-action-row" class="hidden mt-2">
-          <button id="btn-request-bill" class="w-full bg-gradient-to-r from-secondary to-secondary-fixed text-primary border border-outline-variant/30 hover:border-secondary font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer" onclick="handleCustomerBillRequest()">
-            <span class="material-symbols-outlined text-sm">receipt_long</span> Request Bill 💵
-          </button>
         </div>
       </section>
 
@@ -601,181 +592,7 @@
         <button type="submit" class="w-full bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center mt-2 luxury-shadow">
           JOIN TABLE CART
         </button>
-    </div>
-  </div>
-
-  <!-- ADD TO CART SUCCESS BOTTOM POPUP -->
-  <div id="cart-added-modal" 
-    class="fixed bottom-28 md:bottom-6 left-1/2 transform -translate-x-1/2 z-45 transition-all duration-300 opacity-0 pointer-events-none translate-y-10 w-[92%] max-w-md">
-    <div class="glass-card p-3 shadow-xl rounded-xl border border-outline-variant/20 flex items-center justify-between gap-4 pointer-events-auto">
-      <div class="flex items-center gap-3 min-w-0">
-        <!-- Thumbnail -->
-        <div class="relative overflow-hidden rounded-lg w-12 h-12 bg-surface-container border border-outline-variant/20 shadow-sm shrink-0">
-          <img id="cart-added-modal-img" class="w-full h-full object-cover" src="" alt="" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80';"/>
-        </div>
-        <div class="min-w-0">
-          <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-bold leading-none mb-1">Added to Basket</p>
-          <h4 class="font-bold text-xs text-primary truncate leading-tight" id="cart-added-modal-name">Item Name</h4>
-          <p class="text-[10px] text-on-surface-variant font-mono" id="cart-added-modal-price">₹0.00</p>
-        </div>
-      </div>
-      
-      <div class="flex items-center gap-2 shrink-0">
-        <button class="bg-primary text-white px-4 py-2 rounded-lg font-label-caps text-[10px] tracking-wider uppercase active:scale-95 transition-all font-bold luxury-shadow flex items-center gap-1" onclick="closeCartAddedModal(); navigateToTab('cart')">
-          Go to Cart <span class="material-symbols-outlined text-xs">arrow_forward</span>
-        </button>
-        <button class="p-1 hover:bg-neutral-100 rounded text-on-surface-variant" onclick="closeCartAddedModal()">
-          <span class="material-symbols-outlined text-sm">close</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- PAYMENT MODAL OVERLAY -->
-  <div id="payment-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300" onclick="closePaymentModal()">
-    <div class="w-full max-w-md bg-surface p-6 rounded-2xl flex flex-col gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300 glass-card" onclick="event.stopPropagation()">
-      <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
-        <h4 class="font-headline-md text-base text-primary">Palatial Dining Payment</h4>
-        <button class="p-1 focus:outline-none" onclick="closePaymentModal()">
-          <span class="material-symbols-outlined text-primary text-xl">close</span>
-        </button>
-      </div>
-
-      <div id="payment-step-select" class="flex flex-col gap-4">
-        <div class="text-center py-4 bg-secondary/5 rounded-xl border border-secondary/20">
-          <p class="font-label-caps text-[10px] text-secondary tracking-widest uppercase">Amount Due</p>
-          <h2 class="text-2xl font-mono font-bold text-primary mt-1" id="payment-modal-amount">₹0.00</h2>
-        </div>
-
-        <p class="text-xs text-on-surface-variant font-body-md text-center leading-relaxed">
-          Please select your preferred settlement method below to dispatch your gourmet order to our royal kitchen.
-        </p>
-
-        <div class="grid grid-cols-1 gap-3">
-          <!-- UPI Option -->
-          <button class="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/40 hover:border-secondary hover:bg-secondary/5 transition-all text-left active:scale-98" onclick="selectPaymentMethod('UPI')">
-            <div class="w-10 h-10 rounded-full bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
-              <span class="material-symbols-outlined text-xl">qr_code_2</span>
-            </div>
-            <div>
-              <h5 class="font-bold text-xs text-primary leading-tight">Pay instantly with UPI</h5>
-              <p class="text-[10px] text-on-surface-variant mt-0.5">Settle digitally using GPay, PhonePe, Paytm, etc.</p>
-            </div>
-          </button>
-
-          <!-- Cash / Counter Option -->
-          <button class="flex items-center gap-4 p-4 rounded-xl border border-outline-variant/40 hover:border-secondary hover:bg-secondary/5 transition-all text-left active:scale-98" onclick="selectPaymentMethod('Counter')">
-            <div class="w-10 h-10 rounded-full bg-secondary/15 text-secondary flex items-center justify-center shrink-0">
-              <span class="material-symbols-outlined text-xl">storefront</span>
-            </div>
-            <div>
-              <h5 class="font-bold text-xs text-primary leading-tight">Pay at Counter</h5>
-              <p class="text-[10px] text-on-surface-variant mt-0.5">Settle with cash or card later at the concierge.</p>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <!-- UPI Payment View -->
-      <div id="payment-step-upi" class="flex flex-col gap-4 hidden">
-        <button class="self-start flex items-center gap-1 text-[10px] font-label-caps text-secondary font-bold hover:opacity-85" onclick="showPaymentStep('select')">
-          <span class="material-symbols-outlined text-sm">arrow_back</span> Back
-        </button>
-
-        <div class="text-center flex flex-col items-center gap-3">
-          <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-semibold">Scan QR Code to Pay</p>
-          
-          <div class="p-3 bg-white border border-outline-variant/45 rounded-xl luxury-shadow flex flex-col items-center gap-2">
-            <div class="w-40 h-40 bg-neutral-100 flex items-center justify-center relative border border-neutral-200 rounded p-2">
-              <svg class="w-full h-full text-secondary" viewBox="0 0 100 100" fill="currentColor">
-                <rect x="0" y="0" width="25" height="25" />
-                <rect x="5" y="5" width="15" height="15" fill="white" />
-                <rect x="8" y="8" width="9" height="9" />
-                
-                <rect x="75" y="0" width="25" height="25" />
-                <rect x="80" y="5" width="15" height="15" fill="white" />
-                <rect x="83" y="8" width="9" height="9" />
-
-                <rect x="0" y="75" width="25" height="25" />
-                <rect x="5" y="80" width="15" height="15" fill="white" />
-                <rect x="8" y="83" width="9" height="9" />
-
-                <rect x="35" y="10" width="10" height="5" />
-                <rect x="55" y="15" width="5" height="20" />
-                <rect x="40" y="40" width="20" height="20" />
-                <rect x="45" y="45" width="10" height="10" fill="white" />
-                <rect x="65" y="75" width="10" height="15" />
-                <rect x="35" y="75" width="5" height="5" />
-                <rect x="45" y="85" width="15" height="5" />
-                <rect x="75" y="45" width="15" height="15" />
-                <rect x="80" y="50" width="5" height="5" fill="white" />
-              </svg>
-              <div class="absolute inset-0 m-auto w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md border border-outline-variant/30">
-                <span class="material-symbols-outlined text-secondary text-lg">hotel_class</span>
-              </div>
-            </div>
-            <p class="font-mono text-[9px] text-on-surface-variant tracking-wider uppercase font-semibold">UPI ID: merchant@grandpalace</p>
-          </div>
-
-          <p class="text-xs text-on-surface-variant font-body-md mt-1 leading-relaxed">
-            Scan using Bhim, Google Pay, PhonePe, or Paytm.<br>Or submit a mock UPI transaction simulation below:
-          </p>
-
-          <form id="upi-mock-form" class="w-full flex flex-col gap-3 mt-1" onsubmit="handleMockUpiSubmit(event)">
-            <div class="flex flex-col gap-1 text-left">
-              <label class="text-[10px] font-semibold text-primary">Your UPI ID (e.g. name@upi)</label>
-              <input type="text" id="upi-id-input" required value="guest@okhdfcbank" class="w-full bg-white border border-outline-variant/35 rounded-lg text-xs p-2.5 text-primary focus:border-secondary focus:ring-secondary"/>
-            </div>
-            <button type="submit" class="w-full bg-primary text-white py-3 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center font-bold luxury-shadow">
-              Verify & Settle UPI
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <!-- UPI Success Loading / Processing -->
-      <div id="payment-step-processing" class="flex flex-col items-center justify-center text-center gap-4 py-8 hidden">
-        <div class="w-16 h-16 rounded-full border-4 border-secondary-fixed border-t-secondary animate-spin"></div>
-        <div>
-          <h4 class="font-headline-md text-base text-primary">Verifying Transaction</h4>
-          <p class="text-xs text-on-surface-variant leading-relaxed mt-1">Please wait, contacting the central banking server...</p>
-        </div>
-      </div>
-
-      <!-- UPI Success Screen -->
-      <div id="payment-step-success" class="flex flex-col items-center justify-center text-center gap-4 py-6 hidden">
-        <div class="w-16 h-16 rounded-full bg-secondary/15 text-secondary flex items-center justify-center">
-          <span class="material-symbols-outlined text-4xl text-secondary animate-bounce">verified</span>
-        </div>
-        <div>
-          <h4 class="font-headline-md text-lg text-primary">Payment Received</h4>
-          <p class="text-xs text-on-surface-variant leading-relaxed mt-1" id="payment-success-msg">₹0.00 settled successfully via UPI transaction.</p>
-        </div>
-        <p class="text-[10px] text-secondary font-bold font-mono tracking-widest animate-pulse">DISPATCHING ORDER TO KITCHEN...</p>
-      </div>
-
-      <!-- Pay at Counter Confirm View -->
-      <div id="payment-step-counter" class="flex flex-col gap-4 hidden">
-        <button class="self-start flex items-center gap-1 text-[10px] font-label-caps text-secondary font-bold hover:opacity-85" onclick="showPaymentStep('select')">
-          <span class="material-symbols-outlined text-sm">arrow_back</span> Back
-        </button>
-
-        <div class="text-center flex flex-col items-center gap-4 py-2">
-          <div class="w-12 h-12 rounded-full bg-secondary/15 text-secondary flex items-center justify-center animate-bounce">
-            <span class="material-symbols-outlined text-2xl">storefront</span>
-          </div>
-          <div>
-            <h4 class="font-headline-md text-base text-primary">Confirm Counter Settle</h4>
-            <p class="text-xs text-on-surface-variant leading-relaxed mt-1">
-              Your order total is <strong id="payment-counter-amount">₹0.00</strong>. Settle with cash or card at the concierge desk when you complete dining.
-            </p>
-          </div>
-          <button class="w-full bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center font-bold luxury-shadow" onclick="confirmCounterPayment()">
-            Confirm Order & Dispatch
-          </button>
-        </div>
-      </div>
-
+      </form>
     </div>
   </div>
 
@@ -783,7 +600,7 @@
   <!-- MAIN APP ORCHESTRATOR SCRIPTS -->
   <script>
     // State management object prepared for future Supabase models
-    const App = window.App = {
+    const App = {
       tableNumber: "5",
       menu: [],
       popularDishes: [],
@@ -848,195 +665,37 @@
         document.getElementById("guest-name-overlay").classList.add("hidden");
         showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
         
-        // Setup sync channels reactively after joining
-        subscribeToRealtimeChannels();
+        // Setup session members listener reactively after joining
+        setupSessionMembersListener();
         
         window.onAppStateChanged();
       }
     }
 
-    // Network status UI indicators (Scope 1)
-    function updateNetworkStatusUI() {
-      const badge = document.getElementById("network-status-badge");
-      if (!badge) return;
-      
-      if (window.gpNetworkOnline) {
-        badge.className = "text-[9px] bg-secondary/10 text-secondary px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm shrink-0";
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span> Live Sync`;
-      } else {
-        badge.className = "text-[9px] bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider flex items-center gap-1 select-none shadow-sm animate-pulse border border-amber-200 shrink-0";
-        badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-600"></span> Offline Mode`;
-      }
-    }
-
-    async function checkNetworkConnection() {
-      if (navigator.onLine) {
-        if (window.supabaseEnabled && window.supabaseClient) {
-          try {
-            const { error } = await window.supabaseClient.from("orders").select("id").limit(1);
-            window.gpNetworkOnline = !error;
-          } catch (e) {
-            window.gpNetworkOnline = false;
+    let sessionMembersSubscription = null;
+    function setupSessionMembersListener() {
+      if (window.supabaseEnabled && window.supabaseClient) {
+        const currentSid = window.cartService.getSessionId();
+        if (currentSid) {
+          if (sessionMembersSubscription) {
+            window.supabaseClient.removeChannel(sessionMembersSubscription);
           }
-        } else {
-          window.gpNetworkOnline = true;
-        }
-      } else {
-        window.gpNetworkOnline = false;
-      }
-      updateNetworkStatusUI();
-    }
-
-    // Consolidated Realtime Channels with Memory Leak Protection (Scope 6)
-    let realtimeChannels = [];
-    function subscribeToRealtimeChannels() {
-      if (!window.supabaseEnabled || !window.supabaseClient) return;
-
-      // Unsubscribe all active channels first to prevent leaks
-      realtimeChannels.forEach(c => {
-        try {
-          window.supabaseClient.removeChannel(c);
-        } catch (e) {}
-      });
-      realtimeChannels = [];
-
-      // 1. Table sessions channel
-      const sessionChan = window.supabaseClient
-        .channel("realtime:table_sessions")
-        .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-          console.log("🔥 Realtime: Table sessions update received!", payload);
-          if (payload.eventType === "UPDATE") {
-            if (payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
-              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
-              setTimeout(() => {
-                localStorage.removeItem("gp_guest_name");
-                window.cartService.setSessionId("");
-                window.location.reload();
-              }, 3000);
-            }
-            await refreshData();
-            renderOrdersMonitor();
-          }
-          await syncTableGuests();
-        })
-        .subscribe();
-      realtimeChannels.push(sessionChan);
-
-      // 2. Active session members active channel
-      const currentSid = window.cartService.getSessionId();
-      if (currentSid) {
-        const membersChan = window.supabaseClient
-          .channel("realtime:session_members_active")
-          .on("postgres_changes", { event: "*", schema: "public", table: "session_members", filter: `session_id=eq.${currentSid}` }, async (payload) => {
-            console.log("🔥 Realtime: Session members update received!", payload);
-            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
-              showToast("GUEST JOINED", `${payload.new.guest_name} joined your dining table!`, "person");
-            }
-            await syncTableGuests();
-          })
-          .subscribe();
-        realtimeChannels.push(membersChan);
-      }
-
-      // 3. Shared carts channel
-      const cartsChan = window.supabaseClient
-        .channel("realtime:shared_carts")
-        .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-          console.log("🔥 Realtime: Shared Cart update received!", payload);
-          if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-            const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-            const name = item ? item.name : "an item";
-            showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
-          } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-            const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-            const name = item ? item.name : "an item";
-            showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
-          }
-          await window.cartService.syncSharedCart();
-          renderUI();
-        })
-        .subscribe();
-      realtimeChannels.push(cartsChan);
-
-      // 4. Menu stock updates channel
-      const stockChan = window.supabaseClient
-        .channel("realtime:menu_items")
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
-          console.log("🔥 Realtime: Menu items updated!");
-          await refreshData();
-          renderUI();
-        })
-        .subscribe();
-      realtimeChannels.push(stockChan);
-
-      // 5. Orders channel
-      const ordersChan = window.supabaseClient
-        .channel("realtime:orders")
-        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
-          console.log("🔥 Realtime: Order status changed!");
-          await refreshData();
-          renderUI();
-          if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
-            if (window.promptFeedbackOverlay) {
-              window.promptFeedbackOverlay(payload.new.id);
-            }
-          }
-        })
-        .subscribe();
-      realtimeChannels.push(ordersChan);
-    }
-
-    // Dynamic heartbeat throttling (Scope 3)
-    let heartbeatIntervalId = null;
-    function startDynamicHeartbeat() {
-      if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
-      
-      const intervalMs = window.gpNetworkOnline ? 30000 : 5000;
-      console.log(`⏱️ Dynamic Heartbeat: Polling loop interval scheduled at ${intervalMs / 1000}s.`);
-      
-      heartbeatIntervalId = setInterval(async () => {
-        if (window.supabaseEnabled || !window.gpNetworkOnline) {
-          const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-
-          await refreshData();
-          await syncTableGuests();
-
-          const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-          if (activeBefore !== activeAfter) {
-            renderUI();
-
-            App.activeOrders.forEach(o => {
-              if (o.status === "Served") {
-                if (window.promptFeedbackOverlay) {
-                  window.promptFeedbackOverlay(o.id);
-                }
+          sessionMembersSubscription = window.supabaseClient
+            .channel("realtime:session_members_active")
+            .on("postgres_changes", { event: "*", schema: "public", table: "session_members", filter: `session_id=eq.${currentSid}` }, async (payload) => {
+              console.log("🔥 Realtime: Session members update received!", payload);
+              if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName()) {
+                showToast("GUEST JOINED", `${payload.new.guest_name} joined your dining table!`, "person");
               }
-            });
-            App.pastOrders.forEach(o => {
-              const parsedBefore = JSON.parse(activeBefore);
-              const wasActive = parsedBefore.find(x => x.id === o.id);
-              if (wasActive) {
-                if (window.promptFeedbackOverlay) {
-                  window.promptFeedbackOverlay(o.id);
-                }
-              }
-            });
-          }
+              await syncTableGuests();
+            })
+            .subscribe();
         }
-      }, intervalMs);
+      }
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
-      // 0. Intercept addToCart to trigger added-to-cart modal
-      if (window.cartService) {
-        const originalAddToCart = window.cartService.addToCart.bind(window.cartService);
-        window.cartService.addToCart = async function (itemId) {
-          await originalAddToCart(itemId);
-          showAddedToCartModal(itemId);
-        };
-      }
-
-      // 1. Resolve Table Number from QR URL parameters
+      // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
       loadTableSession();
 
       // 1.5. Validate Guest Group-Dining Session
@@ -1073,34 +732,115 @@
         });
       }
 
-      // 7. Initialize connectivity checker and sync channels
-      window.gpNetworkOnline = navigator.onLine;
-      updateNetworkStatusUI();
-      await checkNetworkConnection();
-      subscribeToRealtimeChannels();
-      startDynamicHeartbeat();
+      // 7. Connect live Supabase Realtime socket sync channels
+      if (window.supabaseEnabled && window.supabaseClient) {
+        // Subscribe to dynamic table session updates
+        window.supabaseClient
+          .channel("realtime:table_sessions")
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Table sessions update received!", payload);
+            if (payload.eventType === "UPDATE" && payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
+              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
+              setTimeout(() => {
+                localStorage.removeItem("gp_guest_name");
+                window.cartService.setSessionId("");
+                window.location.reload();
+              }, 3000);
+            }
+            await syncTableGuests();
+          })
+          .subscribe();
 
-      // Listen to browser network changes
-      window.addEventListener("online", async () => {
-        window.gpNetworkOnline = true;
-        updateNetworkStatusUI();
-        await checkNetworkConnection();
-        subscribeToRealtimeChannels();
-        if (window.cartService && window.cartService.flushPendingSyncs) {
-          window.cartService.flushPendingSyncs();
+        // Initial setup for session members listener
+        setupSessionMembersListener();
+
+        // Subscribe to dynamic group shared cart actions
+        window.supabaseClient
+          .channel("realtime:shared_carts")
+          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Shared Cart update received!", payload);
+            
+            // Pop up botanical alerts when other table guests execute additions
+            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
+            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
+            }
+            
+            await window.cartService.syncSharedCart();
+            renderUI();
+          })
+          .subscribe();
+
+        // Subscribe to dynamic stock/availability changes in menu
+        window.supabaseClient
+          .channel("realtime:menu_items")
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
+            console.log("🔥 Realtime: Menu items updated!");
+            await refreshData();
+            renderUI();
+          })
+          .subscribe();
+
+        // Subscribe to dynamic kitchen dispatch updates in orders timeline
+        window.supabaseClient
+          .channel("realtime:orders")
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
+            console.log("🔥 Realtime: Order status changed!");
+            await refreshData();
+            renderUI();
+
+            // Auto prompt feedback modal overlay upon Served
+            if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
+              if (window.promptFeedbackOverlay) {
+                window.promptFeedbackOverlay(payload.new.id);
+              }
+            }
+          })
+          .subscribe();
+      }
+
+      // 8. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
+      setInterval(async () => {
+        if (window.supabaseEnabled) {
+          const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
+
+          await refreshData();
+          await syncTableGuests();
+
+          const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
+          if (activeBefore !== activeAfter) {
+            renderUI();
+
+            // If any active order transitioned to "Served", trigger the feedback overlay
+            App.activeOrders.forEach(o => {
+              if (o.status === "Served") {
+                if (window.promptFeedbackOverlay) {
+                  window.promptFeedbackOverlay(o.id);
+                }
+              }
+            });
+            // Also check past orders list for newly served bills
+            App.pastOrders.forEach(o => {
+              const parsedBefore = JSON.parse(activeBefore);
+              const wasActive = parsedBefore.find(x => x.id === o.id);
+              if (wasActive) {
+                if (window.promptFeedbackOverlay) {
+                  window.promptFeedbackOverlay(o.id);
+                }
+              }
+            });
+          }
         }
-        startDynamicHeartbeat();
-      });
-
-      window.addEventListener("offline", () => {
-        window.gpNetworkOnline = false;
-        updateNetworkStatusUI();
-        startDynamicHeartbeat();
-      });
+      }, 5000);
     });
 
     /**
-     * Resolves Dynamic Table Number from QR Url lookup with boundary validations (Scope 10)
+     * Resolves Dynamic Table Number from QR Url lookup
      */
     function loadTableSession() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1111,26 +851,7 @@
           tabNum = match[1];
         }
       }
-
-      const parsedTab = parseInt(tabNum);
-      if (isNaN(parsedTab) || parsedTab <= 0 || parsedTab > 12) {
-        tabNum = "5";
-      } else {
-        tabNum = String(parsedTab);
-      }
-
-      const lastTable = localStorage.getItem("gp_last_table_number");
-      if (lastTable && lastTable !== tabNum) {
-        // Table changed! Prevent previous customer data leaks (Scope 5)
-        localStorage.removeItem("gp_guest_name");
-        localStorage.removeItem("gp_current_session_id");
-        if (window.cartService) {
-          window.cartService.cartData = {};
-          window.cartService.sharedCartItems = [];
-        }
-      }
-      localStorage.setItem("gp_last_table_number", tabNum);
-      App.tableNumber = tabNum;
+      App.tableNumber = tabNum || "5";
     }
 
     /**
@@ -1142,7 +863,6 @@
         App.popularDishes = await window.menuService.getPopularDishes();
         App.todaysSpecial = await window.menuService.getTodaysSpecial();
 
-        App.activeSession = await window.cartService.resolveActiveSession(App.tableNumber);
         App.activeOrders = await window.orderService.getActiveOrders(App.tableNumber);
         App.pastOrders = await window.orderService.getOrderHistory(App.tableNumber);
       } catch (err) {
@@ -1244,10 +964,8 @@
       }
 
       // Context renders based on tabs
-      if (App.activeTab === "home") {
-        renderHomeSpecials();
-        renderHomeRecommendations();
-      }
+      renderHomeSpecials();
+      renderHomeRecommendations();
 
       if (App.activeTab === "menu") {
         renderMenuCatalog();
@@ -1263,8 +981,7 @@
      */
     function renderHomeSpecials() {
       if (App.todaysSpecial) {
-        const fallbackHero = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=1200&q=80";
-        document.getElementById("special-dish-image").src = App.todaysSpecial.image || fallbackHero;
+        document.getElementById("special-dish-image").src = App.todaysSpecial.image;
         document.getElementById("special-dish-name").textContent = App.todaysSpecial.name;
         document.getElementById("special-dish-desc").textContent = App.todaysSpecial.description;
         document.getElementById("special-dish-price").textContent = `₹${App.todaysSpecial.price}`;
@@ -1305,7 +1022,7 @@
       if (!carousel) return;
       carousel.innerHTML = "";
 
-      const recommendations = await window.recommendationService.getPersonalizedRecommendations(App.menu, activeMenuCat, window.cartService.getCartItems());
+      const recommendations = await window.recommendationService.getPersonalizedRecommendations(App.menu, activeMenuCat);
 
       recommendations.forEach((item) => {
         const card = document.createElement("div");
@@ -1318,26 +1035,10 @@
           }, 200);
         };
 
-        let label = "AI SUGGESTION";
-        let icon = "hotel_class";
-        let badgeStyle = "text-secondary";
-
-        // Detect if table has ordered spicy food and we are showing coolant
-        if ((item.id === 'bv_1' || item.id === 'ds_1') && Object.keys(window.cartService.getCartItems()).some(id => {
-          const m = App.menu.find(x => x.id === id);
-          if (!m) return false;
-          const spicyKeywords = ["masala", "chilli", "kolhapuri", "schezwan", "spicy", "crispy", "tadka", "dragon", "chili", "fiery"];
-          return spicyKeywords.some(keyword => m.name.toLowerCase().includes(keyword) || (m.description || "").toLowerCase().includes(keyword));
-        })) {
-          label = "SPICY COOLANT";
-          icon = "local_fire_department";
-          badgeStyle = "text-amber-500 animate-pulse font-extrabold";
-        }
-
         card.innerHTML = `
           <div class="absolute top-2.5 left-2.5 z-10">
-            <span class="bg-black/80 text-[8.5px] px-2.5 py-0.5 rounded font-mono font-bold tracking-widest uppercase flex items-center gap-0.5 shadow ${badgeStyle}">
-              <span class="material-symbols-outlined text-[10px] animate-pulse">${icon}</span> ${label}
+            <span class="bg-black/80 text-[8.5px] text-secondary px-2.5 py-0.5 rounded font-mono font-bold tracking-widest uppercase flex items-center gap-0.5 shadow">
+              <span class="material-symbols-outlined text-[10px] text-secondary animate-pulse">hotel_class</span> AI SUGGESTION
             </span>
           </div>
           <div class="relative overflow-hidden h-32 w-full bg-surface-container rounded-t-xl">
@@ -1609,21 +1310,20 @@
       renderCartRecommendations(summary);
     }
 
-    async function dispatchOrder(paymentMethod = "Counter") {
+    async function dispatchOrder() {
       const summary = await window.cartService.getCartSummary(App.menu);
       const itemsList = summary.itemsList;
 
       if (itemsList.length === 0) return;
 
       // Submit to database API orderService
-      const order = await window.orderService.submitOrder(itemsList, summary, App.tableNumber, paymentMethod);
+      const order = await window.orderService.submitOrder(itemsList, summary, App.tableNumber);
 
       // Reset cart
       window.cartService.clearCart();
 
       showToast("ORDER DISPATCHED", `Gastronomy order #${order.id} sent to the kitchen. View live status.`, "restaurant");
 
-      await refreshData();
       navigateToTab("orders");
     }
 
@@ -1633,46 +1333,6 @@
       recoContainer.innerHTML = "";
 
       let hasRecommendations = false;
-
-      // 0. Check Spicy Cooling Pairings
-      const spicySuggestions = await window.recommendationService.getSpicySuggestions(App.menu, window.cartService.getCartItems());
-      if (spicySuggestions) {
-        hasRecommendations = true;
-        const spicyDiv = document.createElement("div");
-        spicyDiv.className = "flex flex-col gap-3 animate-fadeIn mb-4";
-        spicyDiv.innerHTML = `
-          <div class="bg-gradient-to-r from-amber-500/10 to-emerald-500/10 border border-amber-500/20 p-4 rounded-xl flex flex-col gap-3 shadow-sm">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-1.5 min-w-0">
-                <span class="material-symbols-outlined text-xs text-amber-600 animate-pulse shrink-0">local_fire_department</span>
-                <span class="text-[9px] font-label-caps text-amber-800 tracking-wider font-extrabold uppercase truncate">Spicy order detected: <span class="underline">${spicySuggestions.spicyItem}</span></span>
-              </div>
-              <span class="text-[8px] bg-emerald-600/10 text-emerald-800 px-2 py-0.5 rounded font-extrabold uppercase font-mono border border-emerald-500/20 shrink-0">Cooling Balance</span>
-            </div>
-            
-            <p class="text-[9.5px] text-on-surface-variant/80 -mt-1 leading-snug">Balance the fiery heat of your palate with our premium soothing cooling recommended pairings.</p>
-            
-            <div class="grid grid-cols-2 gap-3 mt-0.5">
-              ${spicySuggestions.recommendations.map(item => `
-                <div class="glass-card p-2.5 rounded-lg border border-outline-variant/15 flex flex-col gap-2 bg-white/60 hover:-translate-y-0.5 transition-all shadow-sm cursor-pointer" onclick="window.cartService.addToCart('${item.id}'); showToast('COOLING BALANCE', '${item.name} added!', 'restaurant')">
-                  <div class="relative overflow-hidden rounded-md w-full h-16 bg-surface-container border border-outline-variant/10">
-                    <img class="w-full h-full object-cover" src="${item.image}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
-                    <span class="absolute top-1 right-1 text-[7px] bg-emerald-600 text-white font-extrabold font-mono px-1.5 py-0.5 rounded shadow leading-none uppercase">Coolant</span>
-                  </div>
-                  <div class="flex flex-col min-w-0">
-                    <h5 class="font-bold text-[9px] text-primary truncate leading-none">${item.name}</h5>
-                    <div class="flex justify-between items-center mt-1">
-                      <span class="text-[9px] font-mono font-bold text-secondary">₹${item.price}</span>
-                      <span class="text-[8px] text-emerald-700 bg-emerald-500/10 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider leading-none">ADD +</span>
-                    </div>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-        recoContainer.appendChild(spicyDiv);
-      }
 
       // 1. Check Smart Combos
       const combo = await window.recommendationService.getSmartCombos(App.menu, window.cartService.getCartItems());
@@ -1827,7 +1487,7 @@
             <div class="flex justify-between items-start border-b border-outline-variant/10 pb-3">
               <div>
                 <p class="font-label-caps text-[9px] text-secondary tracking-widest">KITCHEN MONITOR</p>
-                <h4 class="font-bold text-sm text-primary mt-0.5 flex items-center gap-2">Order #${o.id} ${getPaymentMethodBadge(o.timestamp)}</h4>
+                <h4 class="font-bold text-sm text-primary mt-0.5">Order #${o.id}</h4>
                 <p class="text-[10px] text-on-surface-variant mt-0.5">${o.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}</p>
               </div>
               <div class="text-right">
@@ -1841,37 +1501,6 @@
         });
       }
 
-      // Check Table Session Bill Request Status
-      const billRequestRow = document.getElementById("bill-request-action-row");
-      const requestBillBtn = document.getElementById("btn-request-bill");
-      
-      const hasServedOrders = App.pastOrders.length > 0;
-      const activeSessionId = window.cartService.getSessionId();
-      
-      if (billRequestRow && requestBillBtn) {
-        if (activeSessionId && hasServedOrders) {
-          billRequestRow.classList.remove("hidden");
-          
-          const currentSess = App.activeSession;
-          
-          if (currentSess && currentSess.status === "paid") {
-            requestBillBtn.disabled = true;
-            requestBillBtn.className = "w-full bg-green-500/10 text-green-700 border border-green-500/30 font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl transition-all text-center flex items-center justify-center gap-2 uppercase cursor-not-allowed";
-            requestBillBtn.innerHTML = `<span class="material-symbols-outlined text-sm">check_circle</span> Payment Completed! Thank you 💖`;
-          } else if (currentSess && currentSess.status === "bill_requested") {
-            requestBillBtn.disabled = true;
-            requestBillBtn.className = "w-full bg-rose-500/10 text-rose-700 border border-rose-500/30 font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl transition-all text-center flex items-center justify-center gap-2 uppercase animate-pulse cursor-not-allowed";
-            requestBillBtn.innerHTML = `<span class="material-symbols-outlined text-sm animate-spin">hourglass_empty</span> Steward Coming with Bill 💵`;
-          } else {
-            requestBillBtn.disabled = false;
-            requestBillBtn.className = "w-full bg-gradient-to-r from-secondary to-secondary-fixed text-primary border border-outline-variant/30 hover:border-secondary font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer";
-            requestBillBtn.innerHTML = `<span class="material-symbols-outlined text-sm">receipt_long</span> Request Bill 💵`;
-          }
-        } else {
-          billRequestRow.classList.add("hidden");
-        }
-      }
-
       // Render completed bills
       const logs = document.getElementById("past-orders-logs-container");
       logs.innerHTML = "";
@@ -1880,49 +1509,30 @@
 
       if (history.length === 0) {
         logs.innerHTML = `<p class="text-xs text-on-surface-variant text-center py-4">No completed bills log.</p>`;
-      } else {
-        history.forEach((h) => {
-          const row = document.createElement("div");
-          row.className = "bg-white p-3.5 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
-          row.innerHTML = `
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-bold text-primary">Bill #${h.id}</span>
-                <span class="text-[8px] bg-green-100 text-green-700 px-1.5 py-0.2 rounded font-bold font-mono">SERVED</span>
-              </div>
-              <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">${h.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}</p>
-              <p class="text-[9px] text-on-surface-variant mt-0.5">${formatTimestampWithBadge(h.timestamp)}</p>
-            </div>
-            <div class="text-right flex flex-col gap-1 items-end">
-              <span class="font-mono font-bold text-primary">₹${h.total.toFixed(2)}</span>
-              <button class="bg-secondary/15 text-secondary px-2.5 py-1 rounded font-label-caps text-[9px] font-bold active:scale-95 transition-transform" onclick="triggerFeedbackModal()">
-                RATE MEAL
-              </button>
-            </div>
-          `;
-          logs.appendChild(row);
-        });
+        return;
       }
-    }
 
-    async function handleCustomerBillRequest() {
-      if (confirm("Are you sure you want to request your bill? Our steward will present it shortly.")) {
-        try {
-          const btn = document.getElementById("btn-request-bill");
-          if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<span class="material-symbols-outlined text-sm animate-spin">hourglass_empty</span> Requesting...`;
-          }
-          
-          await window.cartService.requestBill(App.tableNumber);
-          showToast("BILL REQUESTED", "Steward has been notified! Preparing your bill.", "restaurant");
-          
-          await refreshData();
-          renderOrdersMonitor();
-        } catch(e) {
-          console.error("Error requesting bill:", e);
-        }
-      }
+      history.forEach((h) => {
+        const row = document.createElement("div");
+        row.className = "bg-white p-3.5 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
+        row.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-primary">Bill #${h.id}</span>
+              <span class="text-[8px] bg-green-100 text-green-700 px-1.5 py-0.2 rounded font-bold font-mono">SERVED</span>
+            </div>
+            <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">${h.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}</p>
+            <p class="text-[9px] text-on-surface-variant mt-0.5">${h.timestamp || 'Served'}</p>
+          </div>
+          <div class="text-right flex flex-col gap-1 items-end">
+            <span class="font-mono font-bold text-primary">₹${h.total.toFixed(2)}</span>
+            <button class="bg-secondary/15 text-secondary px-2.5 py-1 rounded font-label-caps text-[9px] font-bold active:scale-95 transition-transform" onclick="triggerFeedbackModal()">
+              RATE MEAL
+            </button>
+          </div>
+        `;
+        logs.appendChild(row);
+      });
     }
 
     /**
@@ -2000,147 +1610,6 @@
       showToast("FEEDBACK DELIVERED", "Thank you! Your ratings have been compiled for management.", "verified");
 
       setTimeout(() => closeFeedbackModal(), 2000);
-    }
-
-    // ==========================================
-    // ADDED TO CART POPUP CONTROL FUNCTIONS
-    // ==========================================
-    let cartAddedTimeout = null;
-
-    function showAddedToCartModal(itemId) {
-      const item = App.menu.find(m => m.id === itemId);
-      if (!item) return;
-
-      const modal = document.getElementById("cart-added-modal");
-      
-      document.getElementById("cart-added-modal-img").src = item.image;
-      document.getElementById("cart-added-modal-name").textContent = item.name;
-      document.getElementById("cart-added-modal-price").textContent = `₹${item.price}`;
-
-      // Reset dynamic classes
-      modal.classList.remove("pointer-events-none", "opacity-0", "translate-y-10");
-      modal.classList.add("opacity-100", "translate-y-0");
-
-      // Auto dismiss after 4 seconds
-      if (cartAddedTimeout) clearTimeout(cartAddedTimeout);
-      cartAddedTimeout = setTimeout(() => {
-        closeCartAddedModal();
-      }, 4000);
-    }
-
-    function closeCartAddedModal() {
-      const modal = document.getElementById("cart-added-modal");
-      modal.classList.remove("opacity-100", "translate-y-0");
-      modal.classList.add("pointer-events-none", "opacity-0", "translate-y-10");
-      if (cartAddedTimeout) clearTimeout(cartAddedTimeout);
-    }
-
-    // ==========================================
-    // PAYMENT AND CHECKOUT PORTAL CONTROLS
-    // ==========================================
-    let checkoutSummary = null;
-
-    async function openPaymentModal() {
-      checkoutSummary = await window.cartService.getCartSummary(App.menu);
-      if (!checkoutSummary || checkoutSummary.itemsList.length === 0) return;
-
-      const modal = document.getElementById("payment-modal");
-      const grandTotalStr = `₹${checkoutSummary.grandTotal.toFixed(2)}`;
-      
-      document.getElementById("payment-modal-amount").textContent = grandTotalStr;
-      document.getElementById("payment-counter-amount").textContent = grandTotalStr;
-
-      // Reset step views
-      showPaymentStep("select");
-
-      modal.classList.remove("hidden");
-      setTimeout(() => {
-        modal.classList.remove("opacity-0");
-        modal.querySelector("div").classList.remove("scale-90");
-      }, 50);
-    }
-
-    function closePaymentModal() {
-      const modal = document.getElementById("payment-modal");
-      modal.classList.add("opacity-0");
-      modal.querySelector("div").classList.add("scale-90");
-      setTimeout(() => modal.classList.add("hidden"), 300);
-    }
-
-    function showPaymentStep(stepName) {
-      const steps = ["select", "upi", "processing", "success", "counter"];
-      steps.forEach((step) => {
-        const el = document.getElementById(`payment-step-${step}`);
-        if (el) {
-          if (step === stepName) {
-            el.classList.remove("hidden");
-          } else {
-            el.classList.add("hidden");
-          }
-        }
-      });
-    }
-
-    function selectPaymentMethod(method) {
-      if (method === "UPI") {
-        showPaymentStep("upi");
-      } else if (method === "Counter") {
-        showPaymentStep("counter");
-      }
-    }
-
-    function handleMockUpiSubmit(e) {
-      e.preventDefault();
-      const upiId = document.getElementById("upi-id-input").value;
-      if (!upiId || upiId.trim() === "") return;
-
-      showPaymentStep("processing");
-
-      // Simulate contact to central bank
-      setTimeout(() => {
-        const amtText = `₹${checkoutSummary.grandTotal.toFixed(2)}`;
-        document.getElementById("payment-success-msg").textContent = `${amtText} settled successfully via UPI transaction (${upiId}).`;
-        showPaymentStep("success");
-
-        // After success screen displays briefly, dispatch the order
-        setTimeout(async () => {
-          closePaymentModal();
-          await dispatchOrder("UPI");
-        }, 2500);
-
-      }, 2000);
-    }
-
-    async function confirmCounterPayment() {
-      closePaymentModal();
-      await dispatchOrder("Counter");
-    }
-
-    // ==========================================
-    // TIMESTAMP BADGE FORMATTING HELPER
-    // ==========================================
-    function formatTimestampWithBadge(timestamp) {
-      if (!timestamp) return "Served";
-      let formatted = timestamp;
-      let badgeHtml = "";
-      if (timestamp.includes("[UPI]")) {
-        formatted = timestamp.replace("[UPI]", "").trim();
-        badgeHtml = `<span class="bg-blue-50 border border-blue-200 text-blue-700 px-2 py-0.5 rounded font-bold text-[8px] ml-1 uppercase">UPI Paid</span>`;
-      } else if (timestamp.includes("[Counter]")) {
-        formatted = timestamp.replace("[Counter]", "").trim();
-        badgeHtml = `<span class="bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded font-bold text-[8px] ml-1 uppercase">Counter Settle</span>`;
-      }
-      return `${formatted} ${badgeHtml}`;
-    }
-
-    function getPaymentMethodBadge(timestamp) {
-      if (!timestamp) return "";
-      if (timestamp.includes("[UPI]")) {
-        return `<span class="bg-blue-50 border border-blue-200 text-blue-700 px-2 py-0.5 rounded font-bold text-[8px] uppercase">UPI Paid</span>`;
-      } else if (timestamp.includes("[Counter]")) {
-        return `<span class="bg-amber-50 border border-amber-200 text-amber-700 px-2 py-0.5 rounded font-bold text-[8px] uppercase">Counter Settle</span>`;
-      }
-      return "";
     }
 
     /**

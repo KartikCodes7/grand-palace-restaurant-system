@@ -20,11 +20,8 @@ class OrderService {
 
         if (error) throw error;
 
-        // Filter out settled receipts (they are for Receipt Archive, not food timelines)
-        const foodOrders = data.filter(order => order.status !== "Settled" && !order.id.startsWith("GP-"));
-
         // Map database naming schema back to client structures
-        this.ordersList = foodOrders.map((order) => {
+        this.ordersList = data.map((order) => {
           // Re-create history completed tags based on status
           const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served"];
           const currentIdx = statusOrder.indexOf(order.status);
@@ -56,10 +53,10 @@ class OrderService {
         });
       } catch (e) {
         console.error("Supabase orders sync error, using fallback storage:", e);
-        this.ordersList = (window.gpStorage.getOrders() || []).filter(o => o.status !== "Settled" && !o.id.startsWith("GP-"));
+        this.ordersList = window.gpStorage.getOrders();
       }
     } else {
-      this.ordersList = (window.gpStorage.getOrders() || []).filter(o => o.status !== "Settled" && !o.id.startsWith("GP-"));
+      this.ordersList = window.gpStorage.getOrders();
     }
   }
 
@@ -75,11 +72,6 @@ class OrderService {
       
       if (window.supabaseDbUpgraded) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
-      }
-      
-      // Fallback temporal session isolation: Only show orders created after this local session started
-      if (activeSession.started_at && o.createdAt) {
-        return new Date(o.createdAt) >= new Date(activeSession.started_at);
       }
       return true;
     });
@@ -98,20 +90,14 @@ class OrderService {
       if (window.supabaseDbUpgraded) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
       }
-      
-      // Fallback temporal session isolation: Only show orders completed during this local session
-      if (activeSession.started_at && o.createdAt) {
-        return new Date(o.createdAt) >= new Date(activeSession.started_at);
-      }
       return true;
     });
   }
 
-  async submitOrder(items, totals, tableNumber = "5", paymentMethod = "Counter") {
+  async submitOrder(items, totals, tableNumber = "5") {
     const orderId = `ORD${Math.floor(100 + Math.random() * 900)}`;
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const sessionId = window.cartService.getSessionId();
-    const timestampText = `${timestamp} [${paymentMethod}]`;
 
     if (window.supabaseEnabled) {
       try {
@@ -124,7 +110,7 @@ class OrderService {
           service_charge: totals.serviceCharge,
           total: totals.grandTotal,
           eta: "20 mins",
-          timestamp: timestampText
+          timestamp: timestamp
         };
 
         if (window.supabaseDbUpgraded) {
@@ -153,16 +139,15 @@ class OrderService {
         return this.ordersList.find(o => o.id === orderId);
       } catch (e) {
         console.error("Supabase order submit error, placing locally:", e);
-        return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod);
+        return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
       }
     } else {
-      return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod);
+      return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
     }
   }
 
-  submitOrderLocally(orderId, timestamp, items, totals, tableNumber, paymentMethod = "Counter") {
+  submitOrderLocally(orderId, timestamp, items, totals, tableNumber) {
     const sessionId = window.cartService.getSessionId();
-    const timestampText = `${timestamp} [${paymentMethod}]`;
     const newOrder = {
       id: orderId,
       sessionId: sessionId || null,
@@ -175,7 +160,7 @@ class OrderService {
       tableNumber: tableNumber,
       status: "Order Placed",
       eta: "20 mins",
-      timestamp: timestampText,
+      timestamp: timestamp,
       date: new Date().toLocaleDateString(),
       createdAt: new Date().toISOString(),
       history: [
