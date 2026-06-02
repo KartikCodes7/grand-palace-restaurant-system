@@ -16,7 +16,7 @@ class GrandPalaceStorage {
     };
     
     // Force reset menu catalog if data version is outdated to reload new image assets
-    const CURRENT_VERSION = 8;
+    const CURRENT_VERSION = 9;
     if (this.get(this.KEYS.VERSION) !== CURRENT_VERSION) {
       localStorage.removeItem(this.KEYS.MENU);
       this.set(this.KEYS.VERSION, CURRENT_VERSION);
@@ -101,9 +101,9 @@ class GrandPalaceStorage {
         { id: "ic_1", name: "Vanilla", description: "Classic creamy ice cream prepared with direct-import Madagascan vanilla orchid bean pods.", price: 79, category: "Ice Cream", image: "images/vanilla.png", popular: false, special: false, inStock: true },
         { id: "ic_2", name: "Strawberry", description: "Pink velvet creamy ice cream folded with organic Mahabaleshwar strawberry jam flakes.", price: 89, category: "Ice Cream", image: "images/strawberry.png", popular: false, special: false, inStock: true },
         { id: "ic_3", name: "Butterscotch", description: "Creamy butterscotch milk base swirled with rich brown butter caramel crunch nuggets.", price: 99, category: "Ice Cream", image: "images/butterscotch.png", popular: false, special: false, inStock: true },
-        { id: "ic_4", name: "Chocolate", description: "Decadent rich dark chocolate cream blended with fine Belgian cacao powder flakes.", price: 99, category: "Ice Cream", image: "images/chocolate.png", popular: false, special: false, inStock: true },
-        { id: "ic_5", name: "Mango", description: "Golden summer Alphonso mango pulps whipped into chilled rich double cream.", price: 99, category: "Ice Cream", image: "images/mango.png", popular: false, special: false, inStock: true },
-        { id: "ic_6", name: "Pineapple", description: "Yellow tangy pineapple juice chunks folded inside artisanal sweet double cream.", price: 89, category: "Ice Cream", image: "images/pineapple.png", popular: false, special: false, inStock: true },
+        { id: "ic_4", name: "Chocolate", description: "Decadent rich dark chocolate cream blended with fine Belgian cacao powder flakes.", price: 99, category: "Ice Cream", image: "images/chocolate_fixed.png", popular: false, special: false, inStock: true },
+        { id: "ic_5", name: "Mango", description: "Golden summer Alphonso mango pulps whipped into chilled rich double cream.", price: 99, category: "Ice Cream", image: "images/mango_fixed.png", popular: false, special: false, inStock: true },
+        { id: "ic_6", name: "Pineapple", description: "Yellow tangy pineapple juice chunks folded inside artisanal sweet double cream.", price: 89, category: "Ice Cream", image: "images/pineapple_fixed.png", popular: false, special: false, inStock: true },
         
         // Desserts & Specials (Mastani Desserts)
         { id: "ds_1", name: "Mango Mastani", description: "A luxurious thick mango milkshake topped with fresh mango chunks, premium vanilla ice cream, and dry fruits.", price: 149, category: "Ice Cream", image: "images/mango_mastani_fixed.png", popular: true, special: false, inStock: true },
