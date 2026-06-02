@@ -1143,6 +1143,7 @@
         App.popularDishes = await window.menuService.getPopularDishes();
         App.todaysSpecial = await window.menuService.getTodaysSpecial();
 
+        App.activeSession = await window.cartService.resolveActiveSession(App.tableNumber);
         App.activeOrders = await window.orderService.getActiveOrders(App.tableNumber);
         App.pastOrders = await window.orderService.getOrderHistory(App.tableNumber);
       } catch (err) {
@@ -1852,10 +1853,13 @@
         if (activeSessionId && hasServedOrders) {
           billRequestRow.classList.remove("hidden");
           
-          const allSessions = window.gpStorage.getTableSessions();
-          const currentSess = allSessions.find(s => s.session_id === activeSessionId && s.status !== "closed");
+          const currentSess = App.activeSession;
           
-          if (currentSess && currentSess.status === "bill_requested") {
+          if (currentSess && currentSess.status === "paid") {
+            requestBillBtn.disabled = true;
+            requestBillBtn.className = "w-full bg-green-500/10 text-green-700 border border-green-500/30 font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl transition-all text-center flex items-center justify-center gap-2 uppercase cursor-not-allowed";
+            requestBillBtn.innerHTML = `<span class="material-symbols-outlined text-sm">check_circle</span> Payment Completed! Thank you 💖`;
+          } else if (currentSess && currentSess.status === "bill_requested") {
             requestBillBtn.disabled = true;
             requestBillBtn.className = "w-full bg-rose-500/10 text-rose-700 border border-rose-500/30 font-bold py-3 px-4 font-label-caps text-[10px] tracking-widest rounded-xl transition-all text-center flex items-center justify-center gap-2 uppercase animate-pulse cursor-not-allowed";
             requestBillBtn.innerHTML = `<span class="material-symbols-outlined text-sm animate-spin">hourglass_empty</span> Steward Coming with Bill 💵`;

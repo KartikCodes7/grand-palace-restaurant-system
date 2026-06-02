@@ -1676,8 +1676,8 @@
                 <span class="material-symbols-outlined text-sm text-red-600 animate-bounce">receipt_long</span>
                 <span><strong>Table ${s.table_number}</strong> has requested their bill!</span>
               </div>
-              <button class="bg-red-600 text-white font-bold px-3 py-1.5 text-[8.5px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider hover:bg-red-700 shadow-sm border border-red-500/20" onclick="clearOwnerTable('${s.table_number}')">
-                Settle & Clear
+              <button class="bg-amber-600 text-white font-bold px-3 py-1.5 text-[8.5px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider hover:bg-amber-700 shadow-sm border border-amber-500/20" onclick="completePayment('${s.table_number}')">
+                Receive Payment 💵
               </button>
             `;
             billAlertsContainer.appendChild(alertDiv);
@@ -1719,7 +1719,10 @@
         let statusClass = "bg-neutral-100 text-neutral-500 border-neutral-300";
         
         if (activeSess) {
-          if (activeSess.status === "bill_requested") {
+          if (activeSess.status === "paid") {
+            status = "Paid";
+            statusClass = "bg-green-100 text-green-700 border-green-300 font-extrabold";
+          } else if (activeSess.status === "bill_requested") {
             status = "Bill Requested";
             statusClass = "bg-red-100 text-red-700 border-red-300 font-extrabold animate-pulse";
           } else if (activeOrders.length > 0) {
@@ -1738,8 +1741,16 @@
         }
 
         const isBillReq = activeSess && activeSess.status === "bill_requested";
+        const isPaid = activeSess && activeSess.status === "paid";
         const card = document.createElement("div");
-        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${status !== 'Vacant' ? (isBillReq ? 'border-red-500 bg-red-50/10 animate-[pulse_3s_infinite]' : 'border-secondary/40 animate-[pulse_6s_infinite]') : 'border-outline-variant/20'}`;
+        
+        let animationClass = "border-outline-variant/20";
+        if (status !== 'Vacant') {
+          if (isBillReq) animationClass = "border-red-500 bg-red-50/10 animate-[pulse_3s_infinite]";
+          else if (isPaid) animationClass = "border-green-500 bg-green-50/10 animate-[pulse_5s_infinite]";
+          else animationClass = "border-secondary/40 animate-[pulse_6s_infinite]";
+        }
+        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${animationClass}`;
 
         let detailsHtml = "";
         let actionButton = "";
@@ -1759,7 +1770,18 @@
             </div>
           `;
 
-          actionButton = `<button class="w-full bg-secondary-fixed/50 hover:bg-secondary text-primary hover:text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-outline-variant/30" onclick="clearOwnerTable('${tableNum}')">Clear Table</button>`;
+          if (activeSess.status === "paid") {
+            actionButton = `<button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-green-500 shadow-sm" onclick="clearOwnerTable('${tableNum}')">Settle & Clear Table</button>`;
+          } else if (activeSess.status === "bill_requested") {
+            actionButton = `
+              <div class="flex flex-col gap-1 w-full">
+                <button class="w-full bg-amber-500 hover:bg-amber-600 text-primary font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-amber-400 shadow-sm" onclick="completePayment('${tableNum}')">Receive Payment 💵</button>
+                <button class="w-full bg-neutral-200 text-neutral-400 font-bold py-1 px-2 text-[8px] font-mono rounded uppercase tracking-wider border border-neutral-300/40 hover:bg-neutral-300" onclick="alert('This table cannot be cleared because food service or payment is still pending.')">Clear Table</button>
+              </div>
+            `;
+          } else {
+            actionButton = `<button class="w-full bg-neutral-200 text-neutral-400 font-bold py-1.5 px-2 text-[9px] font-mono rounded uppercase tracking-wider border border-neutral-300/40 hover:bg-neutral-300" onclick="alert('This table cannot be cleared because food service or payment is still pending.')">Clear Table</button>`;
+          }
         } else {
           detailsHtml = `
             <div class="py-2 text-center text-[10px] text-on-surface-variant/40 italic">
@@ -1787,6 +1809,147 @@
     /**
      * Clear / Settle Table sessions and active carts
      */
+    /**
+     * Complete Payment: Generates and archives the receipt, updates session status to paid
+     */
+    async function completePayment(tableNum) {
+      // Find active session
+      const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
+      if (!activeSess) {
+        alert("No active session found on Table " + tableNum);
+        return;
+      }
+
+      try {
+        // Generate and save receipt
+        const sessionOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id));
+        
+        const consolidated = {};
+        let subtotal = 0;
+        let paymentMethod = "Counter";
+
+        if (sessionOrders.length > 0) {
+          sessionOrders.forEach(o => {
+            if (o.timestamp && o.timestamp.includes("[")) {
+              const match = o.timestamp.match(/\[(.*?)\]/);
+              if (match) paymentMethod = match[1];
+            }
+
+            o.items.forEach(i => {
+              if (consolidated[i.name]) {
+                consolidated[i.name].quantity += i.quantity;
+              } else {
+                consolidated[i.name] = {
+                  name: i.name,
+                  quantity: i.quantity,
+                  price: i.price || (Dashboard.menu.find(m => m.name === i.name) || { price: 0 }).price
+                };
+              }
+              subtotal += (i.price || 0) * i.quantity;
+            });
+          });
+        }
+
+        const itemsArray = Object.values(consolidated);
+        
+        // Format receipt date & ID
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${year}${month}${day}`;
+        const randomNum = String(Math.floor(100 + Math.random() * 900));
+        const receiptId = `GP-${dateStr}-${randomNum}`;
+
+        const guestNames = activeSess.session_members ? activeSess.session_members.map(m => m.guest_name) : [];
+
+        const receipt = {
+          id: receiptId,
+          tableNumber: tableNum,
+          sessionId: activeSess.session_id,
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          guests: guestNames.join(", ") || "Anonymous",
+          items: itemsArray,
+          subtotal: subtotal,
+          taxes: subtotal * 0.05, // 5% GST
+          grandTotal: subtotal * 1.05,
+          paymentMethod: paymentMethod
+        };
+
+        const existingReceipts = window.gpStorage.getReceipts() || [];
+        existingReceipts.push(receipt);
+        window.gpStorage.saveReceipts(existingReceipts);
+
+        // Cloud Receipt Archiving (laptop change data-loss resilience)
+        if (window.supabaseEnabled && window.supabaseClient) {
+          try {
+            const newOrderRow = {
+              id: receiptId,
+              table_number: tableNum,
+              status: "Settled",
+              subtotal: subtotal,
+              tax: subtotal * 0.05,
+              service_charge: 0,
+              total: subtotal * 1.05,
+              timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} [${paymentMethod}]`
+            };
+            if (window.supabaseDbUpgraded) {
+              newOrderRow.session_id = activeSess.session_id;
+            }
+            
+            await window.supabaseClient.from("orders").insert([newOrderRow]);
+            
+            if (itemsArray.length > 0) {
+              const itemsRows = itemsArray.map(i => ({
+                order_id: receiptId,
+                name: i.name,
+                quantity: i.quantity,
+                price: i.price
+              }));
+              await window.supabaseClient.from("order_items").insert(itemsRows);
+            }
+            console.log("👑 Proprietor: Settled receipt successfully backed up to Supabase.");
+          } catch (e) {
+            console.error("Proprietor: Failed to save receipt to Supabase online, utilizing local offline backup:", e);
+          }
+        }
+
+        // Mark session status = paid
+        if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
+          try {
+            await window.supabaseClient
+              .from("table_sessions")
+              .update({ status: "paid" })
+              .eq("session_id", activeSess.session_id);
+          } catch (err) {
+            console.error("Supabase update session status failed:", err);
+          }
+        }
+        
+        // Local fallback
+        const localSessions = window.gpStorage.getTableSessions();
+        const match = localSessions.find(s => s.session_id === activeSess.session_id);
+        if (match) {
+          match.status = "paid";
+          window.gpStorage.saveTableSessions(localSessions);
+        }
+
+        playGoldChime();
+        await syncLocalData();
+        renderDashboard();
+        renderArchiveList();
+
+        alert(`Payment Completed for Table ${tableNum}! Receipt ${receiptId} generated and archived.`);
+      } catch (err) {
+        console.error("Error processing payment:", err);
+        alert("Failed to process payment: " + err.message);
+      }
+    }
+
+    /**
+     * Clear / Settle Table sessions and active carts
+     */
     async function clearOwnerTable(tableNum) {
       // Find active session
       const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
@@ -1795,110 +1958,20 @@
         return;
       }
 
-      if (confirm(`Are you sure you want to clear and settle Table ${tableNum}? This closes active dining session, clears carts, compiles the receipt, and releases the table.`)) {
+      // Check if unpaid!
+      if (activeSess.status !== "paid") {
+        alert("This table cannot be cleared because food service or payment is still pending.");
+        return;
+      }
+
+      if (confirm(`Are you sure you want to Settle & Clear Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
         try {
-          // Generate and save receipt
-          const sessionOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id));
-          
-          if (sessionOrders.length > 0) {
-            // Consolidate items
-            const consolidated = {};
-            let subtotal = 0;
-            let paymentMethod = "Counter";
-
-            sessionOrders.forEach(o => {
-              if (o.timestamp && o.timestamp.includes("[")) {
-                const match = o.timestamp.match(/\[(.*?)\]/);
-                if (match) paymentMethod = match[1];
-              }
-
-              o.items.forEach(i => {
-                if (consolidated[i.name]) {
-                  consolidated[i.name].quantity += i.quantity;
-                } else {
-                  consolidated[i.name] = {
-                    name: i.name,
-                    quantity: i.quantity,
-                    price: i.price || (Dashboard.menu.find(m => m.name === i.name) || { price: 0 }).price
-                  };
-                }
-                subtotal += (i.price || 0) * i.quantity;
-              });
-            });
-
-            const itemsArray = Object.values(consolidated);
-            
-            // Format receipt date & ID
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const dateStr = `${year}${month}${day}`;
-            const randomNum = String(Math.floor(100 + Math.random() * 900));
-            const receiptId = `GP-${dateStr}-${randomNum}`;
-
-            const guestNames = activeSess.session_members ? activeSess.session_members.map(m => m.guest_name) : [];
-
-            const receipt = {
-              id: receiptId,
-              tableNumber: tableNum,
-              sessionId: activeSess.session_id,
-              date: now.toLocaleDateString(),
-              time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              guests: guestNames.join(", ") || "Anonymous",
-              items: itemsArray,
-              subtotal: subtotal,
-              taxes: subtotal * 0.05, // 5% GST
-              grandTotal: subtotal * 1.05,
-              paymentMethod: paymentMethod
-            };
-
-            const existingReceipts = window.gpStorage.getReceipts() || [];
-            existingReceipts.push(receipt);
-            window.gpStorage.saveReceipts(existingReceipts);
-
-            // Cloud Receipt Archiving (laptop change data-loss resilience)
-            if (window.supabaseEnabled && window.supabaseClient) {
-              try {
-                const newOrderRow = {
-                  id: receiptId,
-                  table_number: tableNum,
-                  status: "Settled",
-                  subtotal: subtotal,
-                  tax: subtotal * 0.05,
-                  service_charge: 0,
-                  total: subtotal * 1.05,
-                  timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} [${paymentMethod}]`
-                };
-                if (window.supabaseDbUpgraded) {
-                  newOrderRow.session_id = activeSess.session_id;
-                }
-                
-                await window.supabaseClient.from("orders").insert([newOrderRow]);
-                
-                const itemsRows = itemsArray.map(i => ({
-                  order_id: receiptId,
-                  name: i.name,
-                  quantity: i.quantity,
-                  price: i.price
-                }));
-                
-                await window.supabaseClient.from("order_items").insert(itemsRows);
-                console.log("👑 Proprietor: Settled receipt successfully backed up to Supabase.");
-              } catch (e) {
-                console.error("Proprietor: Failed to save receipt to Supabase online, utilizing local offline backup:", e);
-              }
-            }
-          }
-
           // Clear active session and its shared carts
           await window.cartService.clearTableSessions(tableNum);
           
           playGoldChime();
           await syncLocalData();
           renderDashboard();
-          
-          // Re-render archive list
           renderArchiveList();
         } catch (e) {
           console.error("Error clearing table:", e);
