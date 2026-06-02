@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <title>The Grand Palace | Proprietor Dashboard</title>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+  
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1" rel="stylesheet"/>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary-fixed": "#dce8da",
+            "on-surface-variant": "#444748",
+            "primary": "#000000",
+            "on-secondary-fixed-variant": "#344531",
+            "surface-variant": "#e4e2e2",
+            "secondary-container": "#cfe2cc",
+            "on-secondary-fixed": "#122010",
+            "on-secondary": "#ffffff",
+            "surface-container-highest": "#e4e2e2",
+            "secondary": "#5b6d54", // Premium Botanical Sage/Forest Green
+            "primary-container": "#1c1b1b",
+            "surface-container-low": "#f5f3f3",
+            "surface-tint": "#5f5e5e",
+            "on-background": "#1b1c1c",
+            "on-tertiary-fixed": "#1b1c19",
+            "on-secondary-container": "#273824",
+            "outline-variant": "#c4c7c7",
+            "surface-container": "#efeded",
+            "inverse-on-surface": "#f2f0f0",
+            "on-surface": "#1b1c1c",
+            "inverse-primary": "#c8c6c5",
+            "on-error-container": "#93000a",
+            "on-primary": "#ffffff",
+            "error-container": "#ffdad6",
+            "tertiary": "#000000",
+            "on-primary-fixed-variant": "#474746",
+            "on-error": "#ffffff",
+            "on-primary-container": "#858383",
+            "tertiary-container": "#1b1c19",
+            "on-tertiary-container": "#848480",
+            "background": "#fbf9f8", // Ivory
+            "surface-container-high": "#eae8e7",
+            "surface-dim": "#dbd9d9",
+            "surface": "#fbf9f8",
+            "secondary-fixed-dim": "#b5cbb1",
+            "on-tertiary": "#ffffff",
+            "tertiary-fixed-dim": "#c8c6c2",
+            "error": "#ba1a1a",
+            "primary-fixed": "#e5e2e1",
+            "primary-fixed-dim": "#c8c6c2",
+            "outline": "#747878",
+            "on-primary-fixed": "#1c1b1b",
+            "surface-bright": "#fbf9f8",
+            "tertiary-fixed": "#e4e2dd",
+            "on-tertiary-fixed-variant": "#474744",
+            "inverse-surface": "#303030",
+            "surface-container-lowest": "#ffffff"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "32px",
+            "container-max": "1280px",
+            "section-padding": "120px",
+            "margin-mobile": "20px",
+            "margin-desktop": "64px",
+            "base": "8px"
+          },
+          "fontFamily": {
+            "title-lg": ["Inter"],
+            "label-caps": ["Inter"],
+            "body-md": ["Inter"],
+            "headline-lg": ["Playfair Display"],
+            "display-lg": ["Playfair Display"],
+            "headline-md": ["Playfair Display"],
+            "display-lg-mobile": ["Playfair Display"],
+            "body-lg": ["Inter"]
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+    .luxury-shadow {
+      box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+    }
+    body {
+      background-color: #fbf9f8;
+      -webkit-tap-highlight-color: transparent;
+      background-image: url('botanical_background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(196, 199, 199, 0.35);
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    /* Animated transition updates */
+    .animate-chime {
+      animation: chimePulse 0.6s ease-out;
+    }
+    @keyframes chimePulse {
+      0% { transform: scale(1); background-color: rgba(119, 90, 25, 0.1); }
+      50% { transform: scale(1.02); background-color: rgba(119, 90, 25, 0.3); }
+      100% { transform: scale(1); background-color: transparent; }
+    }
+  </style>
+</head>
+<body class="text-on-surface font-body-md overflow-x-hidden min-h-screen">
+
+  <!-- Shared Sync Logic Loading -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="shared/storage.js?v=8"></script>
+  <script src="shared/events.js?v=8"></script>
+  <script src="shared/supabase.js?v=8"></script>
+  <script src="services/menuService.js?v=8"></script>
+  <script src="services/cartService.js?v=8"></script>
+  <script src="services/orderService.js?v=8"></script>
+  <script src="services/feedbackService.js?v=8"></script>
+
+  <!-- MOCK LOGIN PANEL OVERLAY -->
+  <div id="login-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-surface p-8 rounded-2xl flex flex-col gap-6 border border-outline-variant/35 shadow-2xl relative">
+      <div class="text-center flex flex-col gap-1.5">
+        <p class="font-label-caps text-xs text-secondary tracking-widest uppercase font-semibold">PROPRIETOR ENCLAVE</p>
+        <h2 class="font-display-lg-mobile text-2xl text-primary leading-none">The Grand Palace</h2>
+        <p class="text-xs text-on-surface-variant leading-relaxed">Enter administrative security credentials to access the gastronomy dashboard.</p>
+      </div>
+
+      <form id="login-form" class="flex flex-col gap-4" onsubmit="event.preventDefault(); handleOwnerLogin(event);">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-primary">Email Address</label>
+          <input type="email" id="login-email" required placeholder="owner@grandpalace.com" class="w-full bg-white border border-outline-variant/35 rounded-lg text-xs p-3 text-primary focus:border-secondary focus:ring-secondary"/>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-primary">Security Password</label>
+          <input type="password" id="login-password" required placeholder="••••••••" class="w-full bg-white border border-outline-variant/35 rounded-lg text-xs p-3 text-primary focus:border-secondary focus:ring-secondary"/>
+        </div>
+        <button type="submit" class="w-full bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center mt-2 luxury-shadow">
+          VERIFY IDENTITY
+        </button>
+      </form>
+      
+      <div class="text-center text-[10px] text-on-surface-variant opacity-75 mt-2">
+        Demo Credentials: <span class="font-bold font-mono">owner@grandpalace.com</span> / <span class="font-bold font-mono">admin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header Shell -->
+  <header class="sticky top-0 w-full z-40 flex justify-between items-center px-6 md:px-margin-desktop h-20 bg-surface/85 backdrop-blur-md border-b border-outline-variant/35">
+    <div class="flex items-center gap-4">
+      <div class="font-headline-md text-xl md:text-2xl text-primary tracking-tight">
+        The Grand Palace <span class="font-light italic text-secondary text-sm md:text-base">Proprietor Panel</span>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <span class="hidden md:flex text-xs bg-secondary/10 text-secondary px-3 py-1.5 rounded-full font-mono font-bold uppercase tracking-wider">
+        🟢 Live Sync Connected
+      </span>
+      <button class="p-2 border border-outline-variant/30 hover:border-secondary rounded-lg active:scale-95 transition-all flex items-center gap-1.5 text-xs text-primary" onclick="handleOwnerLogout()">
+        <span class="material-symbols-outlined text-sm">logout</span> Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTENT -->
+  <main class="max-w-container-max mx-auto p-6 md:p-margin-desktop grid grid-cols-1 lg:grid-cols-12 gap-8 hidden" id="dashboard-content">
+    
+    <!-- LEFT PANEL: Analytics, category charts, inventory lists (7 Cols) -->
+    <div class="lg:col-span-7 flex flex-col gap-8">
+      
+      <!-- TOP METRIC CARDS -->
+      <section class="grid grid-cols-2 sm:grid-cols-6 gap-4">
+        
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-secondary text-lg">payments</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Today's Sales</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-primary" id="metrics-revenue">₹0</h3>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-secondary text-lg">cooking</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Active Cooks</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-primary" id="metrics-active-orders">0</h3>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-secondary text-lg">restaurant</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Completed Checkouts</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-primary" id="metrics-served-orders">0</h3>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-secondary text-lg">reviews</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Feedback Score</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-secondary flex items-center gap-1">
+            <span id="metrics-rating">0.0</span><span class="text-xs">★</span>
+          </h3>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-secondary text-lg">timer</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Avg Prep Time</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-primary" id="metrics-avg-prep">0m</h3>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
+          <div>
+            <span class="material-symbols-outlined text-red-500 text-lg">warning</span>
+            <p class="text-[9px] font-label-caps text-on-surface-variant tracking-wider uppercase mt-1">Bottlenecked</p>
+          </div>
+          <h3 class="font-mono text-lg font-bold text-red-600 animate-pulse" id="metrics-bottleneck">0</h3>
+        </div>
+
+      </section>
+
+      <!-- HOURLY SALES BAR GRAPH -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Hourly Sales Distribution</h4>
+          <span class="text-[9px] text-on-surface-variant font-mono uppercase">Fine-Dining Peaks</span>
+        </div>
+        
+        <!-- Elegant native CSS chart -->
+        <div class="h-44 flex items-end justify-around gap-2 px-2 border-b border-outline-variant/30 pb-1 pt-6 relative">
+          <!-- Horizontal Y gridlines -->
+          <div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-15">
+            <div class="border-b border-outline-variant w-full h-0"></div>
+            <div class="border-b border-outline-variant w-full h-0"></div>
+            <div class="border-b border-outline-variant w-full h-0"></div>
+          </div>
+
+          <div class="flex flex-col items-center gap-2 w-full max-w-[50px] relative group">
+            <span class="text-[8px] font-mono text-on-surface-variant/80 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">₹2,100</span>
+            <div class="w-full bg-gradient-to-t from-secondary to-secondary-fixed/70 rounded-t h-8 group-hover:saturate-150 transition-all shadow-sm"></div>
+            <span class="text-[9px] font-mono text-on-surface-variant font-semibold">9 AM</span>
+          </div>
+          
+          <div class="flex flex-col items-center gap-2 w-full max-w-[50px] relative group">
+            <span class="text-[8px] font-mono text-on-surface-variant/80 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">₹8,400</span>
+            <div class="w-full bg-gradient-to-t from-secondary to-secondary-fixed/70 rounded-t h-32 group-hover:saturate-150 transition-all shadow-sm"></div>
+            <span class="text-[9px] font-mono text-on-surface-variant font-semibold">12 PM</span>
+          </div>
+
+          <div class="flex flex-col items-center gap-2 w-full max-w-[50px] relative group">
+            <span class="text-[8px] font-mono text-on-surface-variant/80 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">₹3,900</span>
+            <div class="w-full bg-gradient-to-t from-secondary to-secondary-fixed/70 rounded-t h-16 group-hover:saturate-150 transition-all shadow-sm"></div>
+            <span class="text-[9px] font-mono text-on-surface-variant font-semibold">3 PM</span>
+          </div>
+
+          <div class="flex flex-col items-center gap-2 w-full max-w-[50px] relative group">
+            <span class="text-[8px] font-mono text-on-surface-variant/80 font-bold mb-1 opacity-0 group-hover:opacity-100 transition-opacity">₹12,600</span>
+            <div class="w-full bg-gradient-to-t from-secondary to-secondary-fixed/70 rounded-t h-40 group-hover:saturate-150 transition-all shadow-sm"></div>
+            <span class="text-[9px] font-mono text-on-surface-variant font-semibold">7 PM</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS GRID: Revenue by Category & Top Selling Leaderboard -->
+      <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Category Revenue Fills -->
+        <div class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase border-b border-outline-variant/20 pb-3">Revenue by Category</h4>
+          <div class="flex flex-col gap-3.5" id="category-revenue-container">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Top Selling Dishes list -->
+        <div class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase border-b border-outline-variant/20 pb-3">Top Selling Masterpieces</h4>
+          <div class="flex flex-col gap-3" id="top-selling-dishes-container">
+            <!-- Populated dynamically from served orders list -->
+          </div>
+        </div>
+
+      </section>
+
+      <!-- SESSION OPERATIONS ANALYTICS CARD -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Dining Session Analytics</h4>
+          <span class="text-[9px] text-on-surface-variant font-mono uppercase">Weekly Turnovers</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <div class="bg-surface-container-low p-3 rounded-lg flex flex-col gap-1 border border-outline-variant/10">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Avg Table Duration</span>
+            <h5 class="font-mono text-base font-bold text-primary" id="analytics-avg-duration">0 mins</h5>
+          </div>
+          <div class="bg-surface-container-low p-3 rounded-lg flex flex-col gap-1 border border-outline-variant/10">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Avg Guests / Table</span>
+            <h5 class="font-mono text-base font-bold text-primary" id="analytics-avg-guests">0.0</h5>
+          </div>
+          <div class="bg-surface-container-low p-3 rounded-lg flex flex-col gap-1 border border-outline-variant/10">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Sessions Today</span>
+            <h5 class="font-mono text-base font-bold text-primary" id="analytics-sessions-today">0</h5>
+          </div>
+          <div class="bg-surface-container-low p-3 rounded-lg flex flex-col gap-1 border border-outline-variant/10">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Rev Per Session</span>
+            <h5 class="font-mono text-base font-bold text-primary" id="analytics-revenue-per-session">₹0</h5>
+          </div>
+          <div class="bg-surface-container-low p-3 rounded-lg flex flex-col gap-1 border border-outline-variant/10 col-span-2 sm:col-span-1">
+            <span class="text-[8px] font-label-caps text-on-surface-variant/70 uppercase">Turnover Rate</span>
+            <h5 class="font-mono text-base font-bold text-primary" id="analytics-turnover-rate">0.0x</h5>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABLE MANAGEMENT SYSTEM GRID -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Real-Time Table Management</h4>
+          <span class="text-[9px] text-on-surface-variant font-mono uppercase">12 Dining Arenas</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="table-management-grid">
+          <!-- Dynamically populated table cards -->
+        </div>
+      </section>
+
+      <!-- MENU CATALOG STOCK MANAGER -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
+          <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Menu Inventory Stock control</h4>
+          <select id="inventory-category-select" class="bg-white border border-outline-variant/30 rounded-lg text-xs p-1 text-primary focus:border-secondary focus:ring-secondary" onchange="renderInventoryList()">
+            <option value="All">All Categories</option>
+            <option value="Starters">Starters</option>
+            <option value="Main Course">Main Course</option>
+            <option value="Chinese Khajana">Chinese Khajana</option>
+            <option value="Beverages">Beverages</option>
+            <option value="Ice Cream">Ice Cream</option>
+          </select>
+        </div>
+        
+        <div class="max-h-80 overflow-y-auto pr-1 flex flex-col gap-3.5" id="inventory-list-container">
+          <!-- Dynamically drawn items row with custom stock check switches -->
+        </div>
+      </section>
+
+    </div>
+
+    <!-- RIGHT PANEL: Live Kitchen Dispatch Monitor (5 Cols) -->
+    <div class="lg:col-span-5 flex flex-col gap-6">
+      
+      <!-- KITCHEN MONITOR MODULE -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-5 shadow-sm min-h-[500px]">
+        
+        <div class="flex flex-col gap-3 border-b border-outline-variant/20 pb-4">
+          <div class="flex justify-between items-center">
+            <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Live Kitchen Dispatch Board</h4>
+            <span class="text-[9px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider" id="active-cooks-count">0 ORDERS</span>
+          </div>
+          
+          <!-- SEARCH ORDER BOX -->
+          <div class="relative flex items-center bg-white border border-outline-variant/35 rounded-lg px-3 py-2 focus-within:border-secondary transition-all">
+            <span class="material-symbols-outlined text-on-surface-variant/80 text-sm mr-2 select-none">search</span>
+            <input type="text" id="owner-search-input" placeholder="Search Order ID (#102) or Table..." class="w-full bg-transparent border-0 p-0 text-xs focus:ring-0 focus:outline-none text-primary placeholder-on-surface-variant/60" oninput="renderKitchenOrders()"/>
+          </div>
+
+          <!-- KDS Station Tabs Selector -->
+          <div class="flex flex-wrap gap-1 mt-1 bg-secondary/5 p-1 rounded-lg">
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-secondary text-white shadow-sm shrink-0" onclick="setKdsStation('All', this)">ALL</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Starters', this)">🥗 STARTERS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Main Course', this)">🍛 MAINS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Ice Cream', this)">🍰 DESSERTS</button>
+            <button class="kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0" onclick="setKdsStation('Beverages', this)">🍹 DRINKS</button>
+          </div>
+        </div>
+
+        <!-- Orders Stack -->
+        <div class="flex flex-col gap-4 overflow-y-auto max-h-[600px] pr-1" id="kitchen-orders-stack">
+          <!-- Dynamically populated active kitchen timeline controllers -->
+        </div>
+
+      </section>
+
+      <!-- GUEST FEEDBACK LOGS PANEL -->
+      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+        <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase border-b border-outline-variant/20 pb-3">Guest Reflection Feed</h4>
+        <div class="flex flex-col gap-3.5 max-h-[250px] overflow-y-auto pr-1" id="feedback-logs-feed">
+          <!-- Dynamically drawn guest feedbacks review cards -->
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- SYNTHETIC GOLD CHIME NOTIFICATION SOUND GENERATOR -->
+  <script>
+    /**
+     * Web Audio API tone synthesizer.
+     * Generates a premium gold chime ring notification completely offline.
+     */
+    function playGoldChime() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        
+        // Premium soft high-end double chime notes
+        const now = ctx.currentTime;
+        
+        // Note 1 (E6)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(1318.51, now); // E6 frequency
+        gain1.gain.setValueAtTime(0.08, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.4);
+        
+        // Note 2 (A6)
+        setTimeout(() => {
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = "sine";
+          osc2.frequency.setValueAtTime(1760.00, ctx.currentTime); // A6 frequency
+          gain2.gain.setValueAtTime(0.1, ctx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(ctx.currentTime);
+          osc2.stop(ctx.currentTime + 0.6);
+        }, 120);
+      } catch (e) {
+        console.warn("Audio Context chime failed:", e);
+      }
+    }
+  </script>
+
+  <!-- DASHBOARD ORCHESTRATION JS -->
+  <script>
+    // State management object
+    const Dashboard = {
+      menu: [],
+      orders: [],
+      feedbacks: [],
+      searchQuery: "",
+      isAuthenticated: false,
+      activeStation: "All",
+      tableSessions: [],
+      sharedCarts: []
+    };
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // 1. Check Owner login session
+      checkSessionGate();
+      
+      // 2. Synchronize Storage observers
+      if (window.gpEvents) {
+        window.gpEvents.onOrdersUpdated(async () => {
+          playGoldChime();
+          await syncLocalData();
+          renderDashboard();
+        });
+        
+        window.gpEvents.onMenuUpdated(async () => {
+          await syncLocalData();
+          renderDashboard();
+        });
+        
+        window.gpEvents.onFeedbacksUpdated(async () => {
+          playGoldChime();
+          await syncLocalData();
+          renderDashboard();
+        });
+      }
+
+      // 3. Connect live Supabase Realtime socket sync channels
+      if (window.supabaseEnabled && window.supabaseClient) {
+        // Subscribe to orders insertion / updates in realtime
+        window.supabaseClient
+          .channel("realtime:owner_orders")
+          .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, async (payload) => {
+            console.log("🔥 Realtime: Owner orders update received!");
+            if (payload.eventType === "INSERT") {
+              playGoldChime();
+            }
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to order items insertion in realtime (to prevent race conditions)
+        window.supabaseClient
+          .channel("realtime:owner_order_items")
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_items" }, async () => {
+            console.log("🔥 Realtime: Order items received, syncing dashboard...");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to customer reviews feedback in realtime
+        window.supabaseClient
+          .channel("realtime:owner_feedback")
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedback" }, async () => {
+            console.log("🔥 Realtime: Guest submitted new feedback review!");
+            playGoldChime();
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to menu toggles
+        window.supabaseClient
+          .channel("realtime:owner_menu")
+          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
+            console.log("🔥 Realtime: Menu items updated!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to table sessions changes in realtime
+        window.supabaseClient
+          .channel("realtime:owner_table_sessions")
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions" }, async () => {
+            console.log("🔥 Realtime: Seated guest session update received!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to session members changes in realtime
+        window.supabaseClient
+          .channel("realtime:owner_session_members")
+          .on("postgres_changes", { event: "*", schema: "public", table: "session_members" }, async () => {
+            console.log("🔥 Realtime: Guest joined/left session!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+
+        // Subscribe to shared carts changes in realtime
+        window.supabaseClient
+          .channel("realtime:owner_shared_carts")
+          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts" }, async () => {
+            console.log("🔥 Realtime: Seated guest cart update received!");
+            await syncLocalData();
+            renderDashboard();
+          })
+          .subscribe();
+      }
+
+      // 4. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
+      setInterval(async () => {
+        if (Dashboard.isAuthenticated) {
+          const beforeActiveCount = Dashboard.orders.filter(o => o.status !== "Served").length;
+          
+          await syncLocalData();
+          renderDashboard();
+          
+          const afterActiveCount = Dashboard.orders.filter(o => o.status !== "Served").length;
+          if (afterActiveCount > beforeActiveCount) {
+            playGoldChime();
+          }
+        }
+      }, 5000);
+    });
+
+    /**
+     * Authentication session gate controls
+     */
+    function checkSessionGate() {
+      const activeSession = window.gpStorage.getSession();
+      if (activeSession && activeSession.authenticated) {
+        Dashboard.isAuthenticated = true;
+        document.getElementById("login-overlay").classList.add("hidden");
+        document.getElementById("dashboard-content").classList.remove("hidden");
+        initializeDashboard();
+      } else {
+        Dashboard.isAuthenticated = false;
+        document.getElementById("login-overlay").classList.remove("hidden");
+        document.getElementById("dashboard-content").classList.add("hidden");
+      }
+    }
+
+    async function handleOwnerLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById("login-email").value.trim();
+      const pass = document.getElementById("login-password").value.trim();
+
+      if (email === "owner@grandpalace.com" && pass === "admin") {
+        window.gpStorage.saveSession({ authenticated: true, timestamp: Date.now() });
+        Dashboard.isAuthenticated = true;
+        document.getElementById("login-overlay").classList.add("hidden");
+        document.getElementById("dashboard-content").classList.remove("hidden");
+        playGoldChime();
+        initializeDashboard();
+      } else {
+        alert("Invalid administrative security credentials.");
+      }
+    }
+
+    function handleOwnerLogout() {
+      window.gpStorage.clearSession();
+      checkSessionGate();
+    }
+
+    /**
+     * Dashboard initializer
+     */
+    async function initializeDashboard() {
+      await syncLocalData();
+      renderDashboard();
+    }
+
+    async function syncLocalData() {
+      // Await schema check completion to prevent race conditions
+      if (window.cartService && window.cartService.schemaCheckPromise) {
+        await window.cartService.schemaCheckPromise;
+      }
+      
+      Dashboard.menu = await window.menuService.getMenu();
+      
+      // Resolve all sessions with members join
+      Dashboard.allSessions = await window.cartService.getAllSessions();
+      Dashboard.activeSessions = Dashboard.allSessions.filter(s => s.status !== "closed");
+      
+      if (window.supabaseEnabled && window.supabaseClient) {
+        try {
+          await window.orderService.syncOrders();
+        } catch(e) {}
+
+        try {
+          const { data: cartData, error: cartErr } = await window.supabaseClient
+            .from("shared_carts")
+            .select("*");
+          if (!cartErr) Dashboard.sharedCarts = cartData || [];
+        } catch(e) {}
+      } else {
+        Dashboard.sharedCarts = window.gpStorage.getSharedCarts() || [];
+      }
+      Dashboard.orders = window.orderService.ordersList;
+      Dashboard.feedbacks = await window.feedbackService.getFeedbackLogs();
+    }
+
+    /**
+     * Core renderer orchestrator
+     */
+    function renderDashboard() {
+      renderMetrics();
+      renderCategoryRevenue();
+      renderTopSellingDishes();
+      renderInventoryList();
+      renderTableManagementGrid();
+      renderKitchenOrders();
+      renderFeedbackFeed();
+    }
+
+    /**
+     * Metric totals display
+     */
+    function renderMetrics() {
+      // 1. Total revenue (Subtotal of all SERVED orders)
+      const servedOrders = Dashboard.orders.filter(o => o.status === "Served");
+      const totalRevenue = servedOrders.reduce((sum, o) => sum + o.subtotal, 0);
+      document.getElementById("metrics-revenue").textContent = `₹${totalRevenue.toLocaleString()}`;
+
+      // 2. Active orders count (timeline Placed -> Ready)
+      const activeOrders = Dashboard.orders.filter(o => o.status !== "Served");
+      document.getElementById("metrics-active-orders").textContent = activeOrders.length;
+      document.getElementById("active-cooks-count").textContent = `${activeOrders.length} ORDERS`;
+
+      // 3. Completed checkouts count
+      document.getElementById("metrics-served-orders").textContent = servedOrders.length;
+
+      // 4. Guest feedback average star rating
+      if (Dashboard.feedbacks.length > 0) {
+        const totalStars = Dashboard.feedbacks.reduce((sum, f) => sum + (f.foodRating + f.serviceRating) / 2, 0);
+        const avgScore = (totalStars / Dashboard.feedbacks.length).toFixed(1);
+        document.getElementById("metrics-rating").textContent = avgScore;
+      } else {
+        document.getElementById("metrics-rating").textContent = "5.0";
+      }
+
+      // 5. KDS Average Prep Time & Bottleneck metrics
+      let totalMins = 0;
+      let servedCount = 0;
+      servedOrders.forEach(o => {
+        if (o.createdAt) {
+          const elapsed = Date.now() - new Date(o.createdAt).getTime();
+          const mins = Math.max(8, Math.min(25, Math.floor(elapsed / 60000)));
+          totalMins += mins;
+          servedCount++;
+        }
+      });
+      const avgPrepMins = servedCount > 0 ? Math.round(totalMins / servedCount) : 12;
+      document.getElementById("metrics-avg-prep").textContent = `${avgPrepMins}m`;
+
+      const bottleneckCount = activeOrders.filter(o => {
+        if (!o.createdAt) return false;
+        const elapsedMs = Date.now() - new Date(o.createdAt).getTime();
+        return elapsedMs >= 20 * 60000;
+      }).length;
+      document.getElementById("metrics-bottleneck").textContent = bottleneckCount;
+
+      // ====== 6. Dining Session Operations Analytics ======
+      const allSessions = Dashboard.allSessions || [];
+      const closedSessions = allSessions.filter(s => s.status === "closed");
+
+      // A. Average Table Duration (minutes)
+      let totalDurationMins = 0;
+      let closedCount = 0;
+      closedSessions.forEach(s => {
+        if (s.started_at && s.ended_at) {
+          const diffMs = new Date(s.ended_at) - new Date(s.started_at);
+          const mins = Math.max(1, Math.floor(diffMs / 60000));
+          totalDurationMins += mins;
+          closedCount++;
+        }
+      });
+      const avgDuration = closedCount > 0 ? Math.round(totalDurationMins / closedCount) : 42; // Fallback to 42 min
+      document.getElementById("analytics-avg-duration").textContent = `${avgDuration} mins`;
+
+      // B. Average Guests Per Table
+      let totalGuests = 0;
+      let sessionsWithGuests = 0;
+      allSessions.forEach(s => {
+        const gc = s.guest_count || (s.session_members ? s.session_members.length : 0) || 1;
+        totalGuests += gc;
+        sessionsWithGuests++;
+      });
+      const avgGuests = sessionsWithGuests > 0 ? (totalGuests / sessionsWithGuests).toFixed(1) : "2.8";
+      document.getElementById("analytics-avg-guests").textContent = avgGuests;
+
+      // C. Sessions Completed Today
+      const todayStr = new Date().toDateString();
+      const sessionsCompletedToday = closedSessions.filter(s => {
+        if (!s.ended_at) return false;
+        return new Date(s.ended_at).toDateString() === todayStr;
+      }).length;
+      document.getElementById("analytics-sessions-today").textContent = sessionsCompletedToday;
+
+      // D. Revenue Per Session
+      const totalSessionCount = allSessions.length;
+      const revPerSession = totalSessionCount > 0 ? Math.round(totalRevenue / totalSessionCount) : totalRevenue;
+      document.getElementById("analytics-revenue-per-session").textContent = `₹${revPerSession.toLocaleString()}`;
+
+      // E. Table Turnover Rate (completed sessions divided by 12 active tables)
+      const turnoverRate = (closedCount / 12).toFixed(2);
+      document.getElementById("analytics-turnover-rate").textContent = `${turnoverRate}x`;
+    }
+
+    /**
+     * Dynamically breaks down completed orders revenue by categories
+     */
+    function renderCategoryRevenue() {
+      const container = document.getElementById("category-revenue-container");
+      container.innerHTML = "";
+
+      const categoryRevenue = {
+        "Main Course": 0,
+        "Starters": 0,
+        "Chinese Khajana": 0,
+        "Beverages": 0,
+        "Ice Cream": 0
+      };
+
+      // Aggregate revenue from completed orders
+      const servedOrders = Dashboard.orders.filter(o => o.status === "Served");
+      servedOrders.forEach((order) => {
+        order.items.forEach((oi) => {
+          const menuItem = Dashboard.menu.find(m => m.name === oi.name);
+          if (menuItem && categoryRevenue[menuItem.category] !== undefined) {
+            categoryRevenue[menuItem.category] += oi.price * oi.quantity;
+          }
+        });
+      });
+
+      // Calculate total revenue to scale progress bars
+      const grandTotal = Object.values(categoryRevenue).reduce((sum, val) => sum + val, 0) || 1;
+
+      Object.entries(categoryRevenue).forEach(([cat, rev]) => {
+        const percent = Math.min(100, Math.round((rev / grandTotal) * 100));
+        
+        const row = document.createElement("div");
+        row.className = "flex flex-col gap-1 text-xs";
+        row.innerHTML = `
+          <div class="flex justify-between items-center text-on-surface-variant font-semibold">
+            <span>${cat}</span>
+            <span class="font-mono text-primary font-bold">₹${rev.toLocaleString()}</span>
+          </div>
+          <div class="w-full bg-surface-container rounded-full h-2 overflow-hidden border border-outline-variant/10">
+            <div class="bg-gradient-to-r from-secondary to-secondary-fixed h-full rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    /**
+     * Tallies top selling dishes from completed order records
+     */
+    function renderTopSellingDishes() {
+      const container = document.getElementById("top-selling-dishes-container");
+      container.innerHTML = "";
+
+      const itemSalesCount = {};
+      
+      Dashboard.orders.filter(o => o.status === "Served").forEach((order) => {
+        order.items.forEach((oi) => {
+          itemSalesCount[oi.name] = (itemSalesCount[oi.name] || 0) + oi.quantity;
+        });
+      });
+
+      // Convert to array and sort descending
+      const sortedDishes = Object.entries(itemSalesCount)
+        .map(([name, qty]) => {
+          const item = Dashboard.menu.find(m => m.name === name);
+          return { name, quantity: qty, image: item ? item.image : "" };
+        })
+        .sort((a, b) => b.quantity - a.quantity);
+
+      if (sortedDishes.length === 0) {
+        // Fallback default leaderboard if empty
+        container.innerHTML = `<p class="text-xs text-on-surface-variant text-center py-6">Check out orders to compile leaderboard metrics.</p>`;
+        return;
+      }
+
+      sortedDishes.slice(0, 3).forEach((dish, index) => {
+        const medalColors = ["text-yellow-600", "text-neutral-500", "text-amber-700"];
+        const medal = `<span class="material-symbols-outlined ${medalColors[index]} text-base shrink-0">military_tech</span>`;
+        
+        const row = document.createElement("div");
+        row.className = "flex justify-between items-center text-xs border-b border-outline-variant/10 pb-2.5 last:border-b-0";
+        row.innerHTML = `
+          <div class="flex items-center gap-2.5 min-w-0">
+            ${medal}
+            <div class="relative overflow-hidden rounded bg-surface-container border border-outline-variant/15 shrink-0 w-8 h-8">
+              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${dish.image}" alt="${dish.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+            </div>
+            <span class="font-bold text-primary truncate min-w-0">${dish.name}</span>
+          </div>
+          <span class="font-mono text-secondary font-bold bg-secondary/10 px-2 py-0.5 rounded">${dish.quantity} sold</span>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    /**
+     * Inventory list catalog management
+     */
+    function renderInventoryList() {
+      const container = document.getElementById("inventory-list-container");
+      const selectedCategory = document.getElementById("inventory-category-select").value;
+      container.innerHTML = "";
+
+      const filtered = Dashboard.menu.filter((item) => {
+        return selectedCategory === "All" || item.category === selectedCategory;
+      });
+
+      filtered.forEach((item) => {
+        const inStock = item.inStock !== false;
+        
+        const row = document.createElement("div");
+        row.className = "flex justify-between items-center text-xs pb-3 border-b border-outline-variant/10 last:border-b-0 gap-4";
+        
+        row.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="relative overflow-hidden rounded-lg w-10 h-10 bg-surface-container border border-outline-variant/20 shadow-sm shrink-0">
+              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+            </div>
+            <div class="min-w-0">
+              <h5 class="font-bold text-primary truncate leading-tight">${item.name}</h5>
+              <p class="text-[9.5px] text-on-surface-variant font-mono mt-0.5">₹${item.price} • ${item.category}</p>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-3 shrink-0">
+            <!-- Popular Toggle Button -->
+            <button class="px-2 py-1 rounded border ${item.popular ? 'bg-secondary/10 border-secondary text-secondary font-bold' : 'border-outline-variant/40 text-on-surface-variant hover:border-secondary'} transition-all text-[8px] font-label-caps" onclick="togglePopularStatus('${item.id}')">
+              POPULAR
+            </button>
+            
+            <!-- Today's Special Toggle Button -->
+            <button class="px-2 py-1 rounded border ${item.special ? 'bg-gradient-to-r from-secondary to-secondary-fixed border-secondary text-white font-bold' : 'border-outline-variant/40 text-on-surface-variant hover:border-secondary'} transition-all text-[8px] font-label-caps" onclick="setSpecialStatus('${item.id}')">
+              SPECIAL
+            </button>
+            
+            <!-- In Stock availability slider -->
+            <div class="flex items-center gap-1.5 cursor-pointer" onclick="toggleStockAvailability('${item.id}')">
+              <span class="font-bold text-[8.5px] tracking-wider font-label-caps ${inStock ? 'text-green-600' : 'text-red-500'} uppercase">
+                ${inStock ? 'In Stock' : 'Out'}
+              </span>
+              <div class="w-8 h-4 rounded-full relative border ${inStock ? 'bg-green-500 border-green-600' : 'bg-surface-variant border-outline-variant'} transition-colors">
+                <div class="w-3.5 h-3.5 rounded-full bg-white absolute top-[0px] shadow transition-all ${inStock ? 'right-[0.5px]' : 'left-[0.5px]'}"></div>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    /**
+     * Stock triggers helpers
+     */
+    async function toggleStockAvailability(itemId) {
+      await window.menuService.toggleAvailability(itemId);
+      playGoldChime();
+      await syncLocalData();
+      renderDashboard();
+    }
+
+    async function togglePopularStatus(itemId) {
+      await window.menuService.togglePopular(itemId);
+      playGoldChime();
+      await syncLocalData();
+      renderDashboard();
+    }
+
+    async function setSpecialStatus(itemId) {
+      await window.menuService.setTodaysSpecial(itemId);
+      playGoldChime();
+      await syncLocalData();
+      renderDashboard();
+    }
+
+    /**
+     * Kitchen dispatch board orders timeline stack renderer
+     */
+    function renderKitchenOrders() {
+      const container = document.getElementById("kitchen-orders-stack");
+      const searchQuery = document.getElementById("owner-search-input").value.toLowerCase();
+      container.innerHTML = "";
+
+      const activeOrders = Dashboard.orders.filter((o) => {
+        if (o.status === "Served") return false;
+        
+        // Search filter matching
+        const matchId = o.id.toLowerCase().includes(searchQuery);
+        const matchTable = `table ${o.tableNumber}`.toLowerCase().includes(searchQuery) || o.tableNumber.toLowerCase().includes(searchQuery);
+        return matchId || matchTable;
+      });
+
+      // Filter active orders by selected KDS station
+      const stationFilteredOrders = [];
+      activeOrders.forEach((o) => {
+        if (Dashboard.activeStation === "All") {
+          stationFilteredOrders.push({ order: o, items: o.items });
+        } else {
+          const filteredItems = o.items.filter((oi) => {
+            const m = Dashboard.menu.find(x => x.name === oi.name);
+            const cat = m ? m.category : "Starters";
+            return cat === Dashboard.activeStation;
+          });
+          if (filteredItems.length > 0) {
+            stationFilteredOrders.push({ order: o, items: filteredItems });
+          }
+        }
+      });
+
+      if (stationFilteredOrders.length === 0) {
+        container.innerHTML = `
+          <div class="p-6 text-center text-xs text-on-surface-variant/80 border border-dashed border-outline-variant/30 rounded-xl bg-white/40">
+            No active orders found in the ${Dashboard.activeStation === 'All' ? 'kitchen' : Dashboard.activeStation + ' Station'} queue.
+          </div>
+        `;
+        return;
+      }
+
+      stationFilteredOrders.forEach(({ order: o, items: visibleItems }) => {
+        const itemRow = document.createElement("div");
+        
+        // 1. Calculate preparation duration stopwatch
+        const createdTime = o.createdAt ? new Date(o.createdAt).getTime() : Date.now();
+        const elapsedMs = Date.now() - createdTime;
+        const elapsedMins = Math.max(0, Math.floor(elapsedMs / 60000));
+        const elapsedSecs = Math.max(0, Math.floor((elapsedMs % 60000) / 1000));
+        const durationStr = `${elapsedMins}m ${elapsedSecs}s`;
+
+        // 2. Assign dynamic alert styles based on elapsed time
+        let borderClass = "border-outline-variant/30";
+        let timerBg = "bg-green-100 text-green-700";
+        let warningBadge = "";
+
+        if (elapsedMins >= 20) {
+          borderClass = "border-red-500 bg-red-50/20";
+          timerBg = "bg-red-100 text-red-700 font-extrabold animate-pulse";
+          warningBadge = `
+            <span class="bg-red-100 text-red-700 text-[8.5px] px-2.5 py-0.5 rounded font-extrabold font-mono uppercase tracking-wider animate-pulse flex items-center gap-0.5 shadow-sm border border-red-200">
+              <span class="material-symbols-outlined text-[10.5px] animate-bounce">warning</span> BOTTLENECK
+            </span>
+          `;
+        } else if (elapsedMins >= 10) {
+          borderClass = "border-yellow-500";
+          timerBg = "bg-yellow-100 text-yellow-700 font-bold animate-pulse";
+          warningBadge = `
+            <span class="bg-yellow-100 text-yellow-700 text-[8.5px] px-2.5 py-0.5 rounded font-bold font-mono uppercase tracking-wider animate-pulse flex items-center gap-0.5 border border-yellow-200">
+               <span class="material-symbols-outlined text-[10.5px]">timer</span> DELAYED
+            </span>
+          `;
+        } else {
+          if (o.status === "Preparing") {
+            borderClass = "border-l-4 border-l-secondary border-outline-variant/30";
+          }
+        }
+
+        itemRow.className = `bg-white p-4.5 rounded-xl border ${borderClass} flex flex-col gap-3 relative transition-all shadow-sm`;
+
+        // Build visible items list
+        const itemsDetail = visibleItems.map(i => `<span class="font-bold text-primary">${i.quantity}x</span> ${i.name}`).join(", ");
+        
+        // Render timeline progress indicators actions
+        let controllerHtml = `<div class="flex gap-2 justify-end mt-1">`;
+        
+        // Add Chef Chit print button
+        controllerHtml += `
+          <button class="border border-outline-variant/40 text-on-surface-variant font-bold px-3 py-2 font-label-caps text-[8.5px] rounded active:scale-95 transition-all flex items-center gap-1 hover:border-secondary hover:text-secondary shrink-0" onclick="printChefChit('${o.id}')">
+            <span class="material-symbols-outlined text-[10px]">print</span> PRINT CHIT
+          </button>
+        `;
+
+        if (o.status === "Order Placed") {
+          controllerHtml += `
+            <button class="bg-gradient-to-r from-secondary to-secondary-fixed text-white font-bold px-4 py-2 font-label-caps text-[8.5px] rounded active:scale-95 transition-all flex items-center gap-1 hover:opacity-95" onclick="advanceOrderStatus('${o.id}', 'Accepted')">
+              <span class="material-symbols-outlined text-[10px]">done</span> ACCEPT ORDER
+            </button>
+          `;
+        } else if (o.status === "Accepted") {
+          controllerHtml += `
+            <button class="bg-primary text-white font-bold px-4 py-2 font-label-caps text-[8.5px] rounded active:scale-95 transition-all flex items-center gap-1 hover:opacity-90" onclick="advanceOrderStatus('${o.id}', 'Preparing')">
+              <span class="material-symbols-outlined text-[10px]">cooking</span> START COOKING
+            </button>
+          `;
+        } else if (o.status === "Preparing") {
+          controllerHtml += `
+            <button class="bg-secondary text-white font-bold px-4 py-2 font-label-caps text-[8.5px] rounded active:scale-95 transition-all flex items-center gap-1 hover:opacity-90 animate-pulse" onclick="advanceOrderStatus('${o.id}', 'Ready')">
+              <span class="material-symbols-outlined text-[10px]">soup_kitchen</span> MARK READY
+            </button>
+          `;
+        } else if (o.status === "Ready") {
+          controllerHtml += `
+            <button class="bg-green-600 text-white font-bold px-4 py-2 font-label-caps text-[8.5px] rounded active:scale-95 transition-all flex items-center gap-1 hover:bg-green-700" onclick="advanceOrderStatus('${o.id}', 'Served')">
+              <span class="material-symbols-outlined text-[10px]">room_service</span> SERVED TABLE
+            </button>
+          `;
+        }
+
+        controllerHtml += `</div>`;
+
+        let stationHeaderBadge = "";
+        if (Dashboard.activeStation !== "All") {
+          stationHeaderBadge = `<span class="text-[7.5px] bg-secondary/15 text-secondary px-2 py-0.5 rounded font-mono font-bold tracking-wider uppercase shrink-0">📍 ${Dashboard.activeStation}</span>`;
+        }
+
+        itemRow.innerHTML = `
+          <div class="flex justify-between items-start gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap min-w-0">
+                <span class="font-mono font-bold text-xs text-primary">${o.id}</span>
+                <span class="text-[9px] bg-secondary/15 text-secondary px-2.5 py-0.5 rounded-full font-bold font-mono tracking-wide shrink-0">
+                  Table ${o.tableNumber}
+                </span>
+                <span class="text-[8px] bg-primary/5 border border-outline-variant/30 text-on-surface-variant font-mono px-1.5 py-0.2 rounded font-bold">${o.timestamp}</span>
+                <span class="text-[8.5px] px-2 py-0.5 rounded font-mono font-bold tracking-wider ${timerBg}">
+                  ⏱️ ${durationStr}
+                </span>
+                ${warningBadge}
+              </div>
+              <p class="text-xs text-on-surface-variant/90 mt-2 font-medium leading-relaxed">${itemsDetail}</p>
+            </div>
+            
+            <div class="text-right shrink-0 flex flex-col items-end gap-1.5">
+              <span class="text-xs font-mono font-bold text-secondary">₹${o.total.toFixed(2)}</span>
+              <p class="text-[8.5px] font-label-caps text-on-surface-variant font-bold uppercase tracking-wider">${o.status}</p>
+              ${stationHeaderBadge}
+            </div>
+          </div>
+          
+          ${controllerHtml}
+        `;
+        container.appendChild(itemRow);
+      });
+    }
+
+    /**
+     * KDS Station Filter selector
+     */
+    function setKdsStation(stationName, button) {
+      Dashboard.activeStation = stationName;
+      
+      // Update UI classes on tabs
+      document.querySelectorAll(".kds-station-tab").forEach(btn => {
+        btn.className = "kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-white text-primary border border-outline-variant/20 hover:border-secondary shrink-0";
+      });
+      
+      button.className = "kds-station-tab px-2.5 py-1.5 text-[8px] font-bold font-mono uppercase rounded transition-all active:scale-95 bg-secondary text-white shadow-sm shrink-0";
+      
+      playGoldChime();
+      renderKitchenOrders();
+    }
+
+    /**
+     * Advance status timelines
+     */
+    async function advanceOrderStatus(orderId, newStatus) {
+      await window.orderService.updateOrderStatus(orderId, newStatus);
+      playGoldChime();
+      await syncLocalData();
+      renderDashboard();
+    }
+
+    /**
+     * Guest stars reviews feed
+     */
+    function renderFeedbackFeed() {
+      const container = document.getElementById("feedback-logs-feed");
+      container.innerHTML = "";
+
+      const history = Dashboard.feedbacks;
+
+      if (history.length === 0) {
+        container.innerHTML = `<p class="text-xs text-on-surface-variant/80 text-center py-4">No guest dining feedback logs recorded yet.</p>`;
+        return;
+      }
+
+      history.slice().reverse().forEach((f) => {
+        const card = document.createElement("div");
+        card.className = "bg-white p-3.5 rounded-xl border border-outline-variant/20 flex flex-col gap-1.5 shadow-sm text-xs";
+        
+        // Draw rating stars logic
+        let foodStars = "";
+        for (let i = 1; i <= 5; i++) {
+          foodStars += `<span class="material-symbols-outlined text-[11px] ${i <= f.foodRating ? 'text-secondary shrink-0' : 'text-neutral-200 shrink-0'}">star</span>`;
+        }
+
+        let serviceStars = "";
+        for (let i = 1; i <= 5; i++) {
+          serviceStars += `<span class="material-symbols-outlined text-[11px] ${i <= f.serviceRating ? 'text-secondary shrink-0' : 'text-neutral-200 shrink-0'}">star</span>`;
+        }
+
+        card.innerHTML = `
+          <div class="flex justify-between items-start gap-1 flex-wrap">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-primary">Table ${f.tableNumber}</span>
+              <span class="text-[9px] text-on-surface-variant/75 font-mono">${f.timestamp}</span>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <div class="flex items-center">
+                <span class="text-[8px] font-label-caps text-on-surface-variant mr-1 font-bold">FOOD:</span>
+                <span class="flex">${foodStars}</span>
+              </div>
+              <div class="flex items-center">
+                <span class="text-[8px] font-label-caps text-on-surface-variant mr-1 font-bold">STAFF:</span>
+                <span class="flex">${serviceStars}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-[11px] text-on-surface-variant leading-relaxed font-body-md italic mt-0.5">"${f.comments || 'No comment text left.'}"</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    /**
+     * Printable thermal printer chit slip window popup generator
+     */
+    function printChefChit(orderId) {
+      const order = Dashboard.orders.find(o => o.id === orderId);
+      if (!order) return;
+      
+      const itemsList = order.items.map(i => `
+        <tr>
+          <td style="text-align: left; padding: 6px 0; font-weight: bold; border-bottom: 1px dotted #ccc;">${i.quantity}x ${i.name}</td>
+        </tr>
+      `).join("");
+      
+      const printWindow = window.open("", "_blank", "width=380,height=550");
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Chef Preparation Chit #${orderId}</title>
+            <style>
+              body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 25px; text-align: center; color: #000; font-size: 13px; background-color: #fff; }
+              .divider { border-bottom: 1.5px dashed #000; margin: 12px 0; }
+              .title { font-size: 16px; font-weight: bold; letter-spacing: 1px; }
+              .subtitle { font-size: 10px; font-weight: bold; margin-bottom: 8px; }
+              .meta { font-size: 11px; text-align: left; margin-bottom: 5px; }
+              table { width: 100%; margin-top: 15px; border-collapse: collapse; }
+              th, td { font-size: 13px; }
+            </style>
+          </head>
+          <body>
+            <div class="title">THE GRAND PALACE</div>
+            <div class="subtitle">KITCHEN PREPARATION SLIP</div>
+            <div class="divider"></div>
+            <div class="meta"><strong>ORDER ID:</strong> ${orderId}</div>
+            <div class="meta"><strong>TABLE:</strong> Table ${order.tableNumber}</div>
+            <div class="meta"><strong>DATE:</strong> ${order.date} | ${order.timestamp}</div>
+            <div class="divider"></div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align: left; font-weight: bold; padding-bottom: 6px; border-bottom: 1px solid #000;">KITCHEN QUANTITY & DESCRIPTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsList}
+              </tbody>
+            </table>
+            <div class="divider"></div>
+            <div style="font-size: 10px; margin-top: 20px; font-style: italic; font-weight: bold;">*** fine-dining kitchen dispatch ***</div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              };
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+
+    /**
+     * Table Management Grid Renderer
+     */
+    function renderTableManagementGrid() {
+      const container = document.getElementById("table-management-grid");
+      if (!container) return;
+      container.innerHTML = "";
+
+      for (let t = 1; t <= 12; t++) {
+        const tableNum = String(t);
+        
+        // Find active session
+        const activeSess = Dashboard.activeSessions ? Dashboard.activeSessions.find(s => s.table_number === tableNum) : null;
+
+        // 1. Resolve guests
+        const guestNames = activeSess && activeSess.session_members 
+          ? activeSess.session_members.map(m => m.guest_name) 
+          : [];
+        const guestCount = activeSess ? activeSess.guest_count || guestNames.length || 0 : 0;
+
+        // 2. Resolve active cart items for this table & session
+        const hasCart = activeSess && Dashboard.sharedCarts
+          ? Dashboard.sharedCarts.some(c => c.table_number === tableNum && c.session_id === activeSess.session_id)
+          : false;
+
+        // 3. Resolve active unserved orders for this table & session
+        const activeOrders = activeSess && Dashboard.orders
+          ? Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id) && o.status !== "Served")
+          : [];
+
+        // 4. Resolve completed served orders for this table & session
+        const completedOrders = activeSess && Dashboard.orders
+          ? Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id) && o.status === "Served")
+          : [];
+
+        // 5. Determine dynamic status
+        let status = "Vacant";
+        let statusClass = "bg-neutral-100 text-neutral-500 border-neutral-300";
+        
+        if (activeSess) {
+          if (activeOrders.length > 0) {
+            status = "Waiting Food";
+            statusClass = "bg-amber-100 text-amber-700 border-amber-300 animate-pulse font-bold";
+          } else if (hasCart) {
+            status = "Ordering";
+            statusClass = "bg-purple-100 text-purple-700 border-purple-300 animate-pulse font-semibold";
+          } else if (completedOrders.length > 0) {
+            status = "Completed";
+            statusClass = "bg-green-100 text-green-700 border-green-300 font-bold";
+          } else {
+            status = "Occupied";
+            statusClass = "bg-secondary-fixed text-on-secondary-fixed border-secondary font-semibold";
+          }
+        }
+
+        const card = document.createElement("div");
+        card.className = `glass-card p-3 rounded-xl border flex flex-col justify-between gap-3.5 shadow-sm transition-all hover:-translate-y-0.5 ${status !== 'Vacant' ? 'border-secondary/40 animate-[pulse_6s_infinite]' : 'border-outline-variant/20'}`;
+
+        let detailsHtml = "";
+        let actionButton = "";
+
+        if (activeSess) {
+          // Calculate session duration stopwatch
+          const started = new Date(activeSess.started_at);
+          const diffMs = Date.now() - started.getTime();
+          const diffMins = Math.floor(diffMs / 60000);
+          const durationStr = `${diffMins} mins`;
+
+          detailsHtml = `
+            <div class="flex flex-col gap-1 text-[10px] text-on-surface-variant">
+              <div><span class="text-on-surface-variant/60">Session:</span> <span class="font-mono text-secondary font-bold font-mono">${activeSess.session_id}</span></div>
+              <div class="truncate"><span class="text-on-surface-variant/60">Guests:</span> <span class="font-bold">${guestCount}</span> <span class="text-[8.5px] opacity-75">(${guestNames.join(', ') || 'Anonymous'})</span></div>
+              <div><span class="text-on-surface-variant/60">Duration:</span> <span class="font-mono font-semibold">${durationStr}</span></div>
+            </div>
+          `;
+
+          actionButton = `<button class="w-full bg-secondary-fixed/50 hover:bg-secondary text-primary hover:text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-outline-variant/30" onclick="clearOwnerTable('${tableNum}')">Clear Table</button>`;
+        } else {
+          detailsHtml = `
+            <div class="py-2 text-center text-[10px] text-on-surface-variant/40 italic">
+              Table is currently vacant
+            </div>
+          `;
+          actionButton = `<div class="w-full py-1.5 text-center text-[8px] font-mono uppercase text-on-surface-variant/30 border border-dashed border-outline-variant/25 rounded select-none">Available</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="flex flex-col gap-2 min-w-0">
+            <div class="flex justify-between items-center gap-2">
+              <span class="font-mono text-xs font-extrabold text-primary">T-${tableNum.padStart(2, '0')}</span>
+              <span class="text-[8.5px] px-1.5 py-0.5 rounded border leading-none shrink-0 ${statusClass}">${status}</span>
+            </div>
+            ${detailsHtml}
+          </div>
+          ${actionButton}
+        `;
+        
+        container.appendChild(card);
+      }
+    }
+
+    /**
+     * Clear / Settle Table sessions and active carts
+     */
+    async function clearOwnerTable(tableNum) {
+      if (confirm(`Are you sure you want to clear and settle Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
+        try {
+          // Clear active session and its shared carts
+          await window.cartService.clearTableSessions(tableNum);
+          
+          playGoldChime();
+          await syncLocalData();
+          renderDashboard();
+        } catch (e) {
+          console.error("Error clearing table:", e);
+        }
+      }
+    }
+
+    // 1-second dynamic re-render stopwatch interval loop
+    setInterval(() => {
+      if (Dashboard.isAuthenticated) {
+        if (Dashboard.orders.length > 0) {
+          renderKitchenOrders();
+        }
+        renderTableManagementGrid();
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
