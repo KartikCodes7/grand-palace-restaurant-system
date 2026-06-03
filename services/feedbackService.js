@@ -18,7 +18,7 @@ class FeedbackService {
           comments: comments
         };
 
-        if (window.supabaseDbUpgraded) {
+        if (window.supabaseDbUpgraded && window.supabaseFeedbackHasSessionId) {
           newFeedback.session_id = sessionId || null;
         }
 

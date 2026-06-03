@@ -20,9 +20,13 @@ class GrandPalaceEvents {
       this.handleStorageEvent(e.key);
     });
 
-    // Same-tab synchronization
-    window.addEventListener("storage_manual_update", () => {
-      this.triggerAll();
+    // Same-tab synchronization (selective callback triggers)
+    window.addEventListener("storage_manual_update", (e) => {
+      if (e.detail && e.detail.key) {
+        this.handleStorageEvent(e.detail.key);
+      } else {
+        this.triggerAll();
+      }
     });
   }
 

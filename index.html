@@ -167,6 +167,15 @@
     .animate-float {
       animation: floatAnimation 4s ease-in-out infinite;
     }
+
+    /* Fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.35s ease-out;
+    }
   </style>
 </head>
 
@@ -174,30 +183,31 @@
 
   <!-- Back-end API Services Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=8"></script>
-  <script src="shared/events.js?v=8"></script>
-  <script src="shared/supabase.js?v=8"></script>
-  <script src="services/menuService.js?v=8"></script>
-  <script src="services/cartService.js?v=8"></script>
-  <script src="services/orderService.js?v=8"></script>
-  <script src="services/feedbackService.js?v=8"></script>
-  <script src="services/recommendationService.js?v=8"></script>
+  <script src="shared/storage.js?v=12"></script>
+  <script src="shared/events.js?v=12"></script>
+  <script src="shared/supabase.js?v=12"></script>
+  <script src="services/menuService.js?v=12"></script>
+  <script src="services/cartService.js?v=12"></script>
+  <script src="services/orderService.js?v=12"></script>
+  <script src="services/feedbackService.js?v=12"></script>
+  <script src="services/recommendationService.js?v=12"></script>
 
   <!-- Notification Success Alert Toast -->
   <div id="toast-alert"
     class="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none w-[90%] max-w-sm">
     <div class="glass-card px-6 py-4 shadow-xl border-l-4 border-secondary flex items-start gap-4">
       <span class="material-symbols-outlined text-secondary" id="toast-icon">info</span>
-      <div>
+      <div class="flex-grow">
         <p class="font-label-caps text-[10px] text-secondary tracking-widest uppercase" id="toast-title">ALERT</p>
         <p class="text-sm text-primary" id="toast-message">Message details...</p>
       </div>
+      <button id="toast-action-btn" class="hidden bg-primary text-white px-3 py-1.5 rounded font-label-caps text-[9px] tracking-wider uppercase active:scale-95 transition-all shrink-0 self-center font-bold shadow-sm" onclick="navigateToTab('cart')">GO TO CART →</button>
     </div>
   </div>
 
   <!-- Header Shell -->
   <header
-    class="fixed top-0 w-full z-45 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 bg-surface/75 backdrop-blur-md border-b border-outline-variant/30">
+    class="fixed top-0 w-full z-40 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 bg-surface/75 backdrop-blur-md border-b border-outline-variant/30">
     <div class="font-headline-md text-headline-md text-primary tracking-tight cursor-pointer"
       onclick="navigateToTab('home')">
       The Grand Palace
@@ -205,11 +215,11 @@
 
     <!-- Navigation for larger viewports -->
     <div class="hidden md:flex gap-gutter">
-      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="#"
+      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="javascript:void(0)"
         onclick="navigateToTab('menu')">Menu</a>
-      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="#"
+      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="javascript:void(0)"
         onclick="navigateToTab('cart')">Cart</a>
-      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="#"
+      <a class="text-on-surface-variant hover:text-primary transition-colors font-label-caps text-label-caps" href="javascript:void(0)"
         onclick="navigateToTab('orders')">Orders</a>
     </div>
 
@@ -424,9 +434,9 @@
         </div>
 
         <button
-          class="bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center"
-          onclick="dispatchOrder()">
-          PLACE KITCHEN ORDER
+          class="bg-primary text-white py-3.5 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center font-bold shadow-sm"
+          onclick="openCheckoutModal()">
+          PROCEED TO CHECKOUT
         </button>
       </section>
     </div>
@@ -498,6 +508,81 @@
     </button>
 
   </nav>
+
+  <!-- FLOATING STICKY BASKET BAR -->
+  <div id="floating-basket-bar"
+    class="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 w-[90%] max-w-sm bg-primary/95 text-white p-4 rounded-xl border border-secondary/40 shadow-xl flex items-center justify-between gap-4 backdrop-blur-md hidden animate-fadeIn cursor-pointer"
+    onclick="navigateToTab('cart')">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-secondary text-2xl animate-bounce">shopping_basket</span>
+      <div>
+        <p class="font-bold text-xs tracking-wider" id="floating-basket-count">0 Items in Basket</p>
+        <p class="text-[10px] text-on-primary-container mt-0.5" id="floating-basket-subtotal">Estimated Total: ₹0.00</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 font-label-caps text-[10px] text-secondary font-bold shrink-0">
+      <span>GO TO BASKET</span>
+      <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
+    </div>
+  </div>
+
+  <!-- DYNAMIC CHECKOUT & PAYMENT MODAL -->
+  <div id="checkout-modal"
+    class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300"
+    onclick="closeCheckoutModal()">
+    <div
+      class="w-full max-w-sm bg-surface p-6 rounded-2xl flex flex-col gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
+      onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
+        <h4 class="font-headline-md text-base text-primary">Palatial Checkout</h4>
+        <button class="p-1 focus:outline-none" onclick="closeCheckoutModal()">
+          <span class="material-symbols-outlined text-primary text-xl">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-4">
+        <p class="text-xs text-on-surface-variant leading-relaxed font-body-md">
+          Select your preferred payment protocol to dispatch your order to the royal kitchen.
+        </p>
+
+        <!-- Order Summary Preview -->
+        <div class="bg-surface-container/50 border border-outline-variant/20 p-3.5 rounded-xl flex flex-col gap-2 text-xs">
+          <div class="flex justify-between font-semibold text-primary">
+            <span>Order Total (incl. taxes)</span>
+            <span class="text-secondary font-mono" id="checkout-total-preview">₹0.00</span>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3">
+          <!-- Option 1: Pay Now -->
+          <div class="border border-secondary/30 bg-gradient-to-r from-secondary/5 to-transparent p-4 rounded-xl flex flex-col gap-3">
+            <div>
+              <p class="font-label-caps text-[9px] text-secondary tracking-wider font-bold">OPTION 1: PRE-PAID CHECKOUT</p>
+              <h5 class="font-bold text-xs text-primary mt-0.5">Pay Now & Dispatch</h5>
+              <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">Settle your bill immediately via UPI or at the counter to start preparation.</p>
+            </div>
+            <div class="flex gap-2.5">
+              <button class="flex-1 bg-primary text-white py-2 px-1 rounded-lg font-label-caps text-[9px] tracking-wider uppercase active:scale-95 transition-all text-center font-bold shadow-sm"
+                onclick="checkoutPrepaid('counter')">💵 PAY COUNTER</button>
+              <button class="flex-1 bg-secondary text-white py-2 px-1 rounded-lg font-label-caps text-[9px] tracking-wider uppercase active:scale-95 transition-all text-center font-bold shadow-sm"
+                onclick="checkoutPrepaid('upi')">📱 PAY VIA UPI</button>
+            </div>
+          </div>
+
+          <!-- Option 2: Pay Later -->
+          <button class="w-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-primary p-4 rounded-xl text-left flex justify-between items-center transition-all active:scale-[0.98]"
+            onclick="checkoutPostpaid()">
+            <div>
+              <p class="font-label-caps text-[9px] text-on-surface-variant/70 tracking-wider font-bold">OPTION 2: OPEN DINING SESSION</p>
+              <h5 class="font-bold text-xs text-primary mt-0.5">Order Now, Pay Later</h5>
+              <p class="text-[10px] text-on-surface-variant/80 leading-tight mt-0.5">Send items to the kitchen immediately and pay the consolidated bill when leaving.</p>
+            </div>
+            <span class="material-symbols-outlined text-secondary">arrow_forward_ios</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- FEEDBACK OVERLAY MODAL PANEL -->
   <div id="feedback-modal"
@@ -634,6 +719,8 @@
       if (!active) {
         // No active session exists at this table (Vacant).
         if (window.cartService) window.cartService.resetLocalSessionCart();
+        const inputName = document.getElementById("guest-input-name");
+        if (inputName) inputName.value = "";
         document.getElementById("guest-name-overlay").classList.remove("hidden");
       } else {
         // Active session exists!
@@ -641,16 +728,21 @@
           // This guest's browser is not associated with this active session!
           if (window.cartService) window.cartService.resetLocalSessionCart();
           window.cartService.setSessionId(active.session_id);
+          const inputName = document.getElementById("guest-input-name");
+          if (inputName) inputName.value = "";
           document.getElementById("guest-name-overlay").classList.remove("hidden");
         } else {
           // Already associated with this active session!
-          const guestName = localStorage.getItem("gp_guest_name");
-          if (!guestName) {
+          const guestName = window.cartService.getGuestName();
+          if (!guestName || guestName === "Guest") {
+            const inputName = document.getElementById("guest-input-name");
+            if (inputName) inputName.value = "";
             document.getElementById("guest-name-overlay").classList.remove("hidden");
           } else {
             document.getElementById("guest-name-overlay").classList.add("hidden");
             // Reinforce session member registration
             await window.cartService.joinSessionMember(active.session_id, guestName);
+            await window.cartService.syncSharedCart(); // Pull existing items on initial load!
             await syncTableGuests();
           }
         }
@@ -665,16 +757,18 @@
         document.getElementById("guest-name-overlay").classList.add("hidden");
         showToast("JOINED ROOM", `Welcome to Table ${App.tableNumber}, ${name.trim()}! Ready to dine.`, "restaurant");
         
+        await window.cartService.syncSharedCart(); // Pull existing items after joining!
+        
         // Setup session members listener reactively after joining
         setupSessionMembersListener();
         
-        window.onAppStateChanged();
+        await window.onAppStateChanged();
       }
     }
 
     let sessionMembersSubscription = null;
     function setupSessionMembersListener() {
-      if (window.supabaseEnabled && window.supabaseClient) {
+      if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
         const currentSid = window.cartService.getSessionId();
         if (currentSid) {
           if (sessionMembersSubscription) {
@@ -695,6 +789,11 @@
     }
 
     document.addEventListener("DOMContentLoaded", async () => {
+      // Define network status for guest portal (used by cartService)
+      window.gpNetworkOnline = navigator.onLine;
+      window.addEventListener('online', () => { window.gpNetworkOnline = true; });
+      window.addEventListener('offline', () => { window.gpNetworkOnline = false; });
+
       // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
       loadTableSession();
 
@@ -733,7 +832,7 @@
       }
 
       // 7. Connect live Supabase Realtime socket sync channels
-      if (window.supabaseEnabled && window.supabaseClient) {
+      if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
         // Subscribe to dynamic table session updates
         window.supabaseClient
           .channel("realtime:table_sessions")
@@ -742,8 +841,7 @@
             if (payload.eventType === "UPDATE" && payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
               showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
               setTimeout(() => {
-                localStorage.removeItem("gp_guest_name");
-                window.cartService.setSessionId("");
+                window.cartService.resetLocalSessionCart();
                 window.location.reload();
               }, 3000);
             }
@@ -775,7 +873,9 @@
             renderUI();
           })
           .subscribe();
+      }
 
+      if (window.supabaseEnabled && window.supabaseClient) {
         // Subscribe to dynamic stock/availability changes in menu
         window.supabaseClient
           .channel("realtime:menu_items")
@@ -805,7 +905,8 @@
       }
 
       // 8. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
-      setInterval(async () => {
+      window._guestPollingId = setInterval(async () => {
+        if (document.hidden) return; // Skip background processing to save CPU and battery
         if (window.supabaseEnabled) {
           const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
 
@@ -942,10 +1043,18 @@
       renderUI();
     }
 
-    /**
-     * Core renderer
-     */
+    let renderUIFrameId = null;
     function renderUI() {
+      if (renderUIFrameId) cancelAnimationFrame(renderUIFrameId);
+      renderUIFrameId = requestAnimationFrame(() => {
+        renderUIDirect();
+      });
+    }
+
+    /**
+     * Core renderer (direct synchronous updates)
+     */
+    function renderUIDirect() {
       // Dynamic Headers
       const tLabel = `Table ${App.tableNumber}`;
       document.getElementById("header-table-badge").textContent = tLabel;
@@ -963,16 +1072,20 @@
         badge.classList.add("hidden");
       }
 
-      // Context renders based on tabs
-      renderHomeSpecials();
-      renderHomeRecommendations();
-
-      if (App.activeTab === "menu") {
+      // Context renders based on active tab only
+      if (App.activeTab === "home") {
+        renderHomeSpecials();
+        renderHomeRecommendations();
+      } else if (App.activeTab === "menu") {
         renderMenuCatalog();
       } else if (App.activeTab === "cart") {
-        renderCartBasket();
+        renderCartBasket().catch(e => console.error('Cart render error:', e));
       } else if (App.activeTab === "orders") {
         renderOrdersMonitor();
+      }
+
+      if (window.updateFloatingBasketBar) {
+        window.updateFloatingBasketBar().catch(e => console.error("Error updating basket bar:", e));
       }
     }
 
@@ -1127,14 +1240,14 @@
         } else if (cartQty > 0) {
           actionBtn = `
             <div class="flex items-center border border-secondary rounded-lg">
-              <button class="px-2.5 py-1 text-secondary font-bold text-xs" onclick="window.cartService.removeFromCart('${item.id}')">-</button>
+              <button class="px-2.5 py-1 text-secondary font-bold text-xs" onclick="event.stopPropagation(); window.cartService.removeFromCart('${item.id}'); showToast('REMOVED', '${item.name.replace(/'/g, '\\&#39;')} removed from basket', 'remove_shopping_cart')">-</button>
               <span class="px-2.5 text-xs font-mono font-bold text-primary">${cartQty}</span>
-              <button class="px-2.5 py-1 text-secondary font-bold text-xs" onclick="window.cartService.addToCart('${item.id}')">+</button>
+              <button class="px-2.5 py-1 text-secondary font-bold text-xs" onclick="event.stopPropagation(); window.cartService.addToCart('${item.id}'); showToast('ADDED', '${item.name.replace(/'/g, '\\&#39;')} quantity increased', 'shopping_cart')">+</button>
             </div>
           `;
         } else {
           actionBtn = `
-            <button class="bg-primary text-white border border-primary px-3 py-1.5 font-label-caps text-[9px] tracking-wider rounded active:scale-95 transition-all focus:outline-none" onclick="window.cartService.addToCart('${item.id}')">
+            <button class="bg-primary text-white border border-primary px-3 py-1.5 font-label-caps text-[9px] tracking-wider rounded active:scale-95 transition-all focus:outline-none" onclick="event.stopPropagation(); window.cartService.addToCart('${item.id}'); showAddedToCartToast('${item.name.replace(/'/g, '\\&#39;')}')">
               ADD TO CART
             </button>
           `;
@@ -1509,30 +1622,120 @@
 
       if (history.length === 0) {
         logs.innerHTML = `<p class="text-xs text-on-surface-variant text-center py-4">No completed bills log.</p>`;
-        return;
+      } else {
+        history.forEach((h) => {
+          const row = document.createElement("div");
+          row.className = "bg-white p-3.5 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
+          row.innerHTML = `
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-primary">Bill #${h.id}</span>
+                <span class="text-[8px] bg-green-100 text-green-700 px-1.5 py-0.2 rounded font-bold font-mono">SERVED</span>
+              </div>
+              <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">${h.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}</p>
+              <p class="text-[9px] text-on-surface-variant mt-0.5">${h.timestamp || 'Served'}</p>
+            </div>
+            <div class="text-right flex flex-col gap-1 items-end">
+              <span class="font-mono font-bold text-primary">₹${h.total.toFixed(2)}</span>
+              <button class="bg-secondary/15 text-secondary px-2.5 py-1 rounded font-label-caps text-[9px] font-bold active:scale-95 transition-transform" onclick="triggerFeedbackModal()">
+                RATE MEAL
+              </button>
+            </div>
+          `;
+          logs.appendChild(row);
+        });
       }
 
-      history.forEach((h) => {
-        const row = document.createElement("div");
-        row.className = "bg-white p-3.5 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
-        row.innerHTML = `
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="font-bold text-primary">Bill #${h.id}</span>
-              <span class="text-[8px] bg-green-100 text-green-700 px-1.5 py-0.2 rounded font-bold font-mono">SERVED</span>
+      // Render Bill Payment Section (appears when there are any orders in the session)
+      const billSection = document.getElementById("bill-payment-section");
+      const allOrders = [...App.activeOrders, ...App.pastOrders];
+
+      if (billSection && allOrders.length > 0) {
+        let billSubtotal = 0;
+        allOrders.forEach(h => { billSubtotal += h.subtotal || h.total / 1.18 || 0; });
+        const billTax = billSubtotal * 0.08;
+        const billService = billSubtotal * 0.10;
+        const billGrandTotal = billSubtotal + billTax + billService;
+
+        window.cartService.resolveActiveSession(App.tableNumber).then((activeSession) => {
+          if (!activeSession) return;
+          
+          const hasUnservedOrders = App.activeOrders.length > 0;
+          const isBillReq = activeSession.status === "bill_requested";
+          const isPaid = activeSession.status === "paid";
+          let actionContent = "";
+          if (hasUnservedOrders) {
+            actionContent = `
+              <div class="bg-amber-500/10 border border-amber-500/30 p-4 rounded-lg text-center flex flex-col items-center gap-1.5 animate-fadeIn">
+                <span class="material-symbols-outlined text-amber-600 text-3xl">restaurant</span>
+                <p class="font-bold text-xs text-amber-700 uppercase tracking-wider">Food Service Pending</p>
+                <p class="text-[10px] text-on-surface-variant">Bill settlement is available after all ordered items have been served.</p>
+              </div>
+            `;
+          } else if (isPaid) {
+            actionContent = `
+              <div class="bg-green-500/10 border border-green-500/30 p-4 rounded-lg text-center flex flex-col items-center gap-1.5 animate-fadeIn">
+                <span class="material-symbols-outlined text-green-600 text-3xl">check_circle</span>
+                <p class="font-bold text-xs text-green-700 uppercase tracking-wider">Payment Settled</p>
+                <p class="text-[10px] text-on-surface-variant">Thank you for dining at the Grand Palace. Your table session has been settled.</p>
+              </div>
+            `;
+          } else if (isBillReq) {
+            actionContent = `
+              <div class="bg-amber-500/10 border border-amber-500/30 p-4 rounded-lg text-center flex flex-col items-center gap-1.5 animate-fadeIn">
+                <span class="material-symbols-outlined text-amber-600 text-3xl animate-spin">sync</span>
+                <p class="font-bold text-xs text-amber-700 uppercase tracking-wider">Bill Requested</p>
+                <p class="text-[10px] text-on-surface-variant">A steward will arrive at Table ${App.tableNumber} with the bill receipt shortly.</p>
+              </div>
+            `;
+          } else {
+            actionContent = `
+              <div class="flex gap-3">
+                <button class="flex-1 bg-primary text-white py-3 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center font-bold shadow-sm"
+                  onclick="requestBillFromGuest('counter')">💵 PAY AT COUNTER</button>
+                <button class="flex-1 bg-secondary text-white py-3 rounded-lg font-label-caps text-xs tracking-wider uppercase active:scale-95 transition-all text-center font-bold shadow-sm"
+                  onclick="requestBillFromGuest('upi')">📱 PAY VIA UPI</button>
+              </div>
+            `;
+          }
+
+          billSection.innerHTML = `
+            <div class="glass-card p-5 rounded-xl border border-secondary/30 flex flex-col gap-4 shadow-md bg-gradient-to-b from-secondary/5 to-transparent animate-fadeIn">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-semibold">💳 DINING BILL SUMMARY</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">${hasUnservedOrders ? 'Food service in progress...' : isPaid ? 'Settle complete.' : 'Ready to settle? Request your bill below.'}</p>
+                </div>
+                <span class="material-symbols-outlined text-secondary text-2xl">receipt_long</span>
+              </div>
+              <div class="flex flex-col gap-1.5 text-xs border-t border-outline-variant/15 pt-3">
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Subtotal</span>
+                  <span class="font-mono font-semibold">₹${billSubtotal.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Luxury Tax (8%)</span>
+                  <span class="font-mono font-semibold">₹${billTax.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-on-surface-variant">
+                  <span>Service Charge (10%)</span>
+                  <span class="font-mono font-semibold">₹${billService.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between font-bold text-sm text-primary border-t border-dashed border-outline-variant/30 pt-2 mt-1">
+                  <span>Grand Total</span>
+                  <span class="text-secondary font-mono text-base">₹${billGrandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+              ${actionContent}
             </div>
-            <p class="text-[10px] text-on-surface-variant leading-tight mt-0.5">${h.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}</p>
-            <p class="text-[9px] text-on-surface-variant mt-0.5">${h.timestamp || 'Served'}</p>
-          </div>
-          <div class="text-right flex flex-col gap-1 items-end">
-            <span class="font-mono font-bold text-primary">₹${h.total.toFixed(2)}</span>
-            <button class="bg-secondary/15 text-secondary px-2.5 py-1 rounded font-label-caps text-[9px] font-bold active:scale-95 transition-transform" onclick="triggerFeedbackModal()">
-              RATE MEAL
-            </button>
-          </div>
-        `;
-        logs.appendChild(row);
-      });
+          `;
+          billSection.classList.remove("hidden");
+        }).catch(err => {
+          console.error("Error resolving active session for bill summary:", err);
+        });
+      } else if (billSection) {
+        billSection.classList.add("hidden");
+      }
     }
 
     /**
@@ -1615,20 +1818,176 @@
     /**
      * Dynamic alerts system
      */
+    let toastTimeoutId = null;
     function showToast(title, message, icon = "info") {
+      if (toastTimeoutId) clearTimeout(toastTimeoutId);
       const toast = document.getElementById("toast-alert");
       document.getElementById("toast-title").textContent = title;
       document.getElementById("toast-message").textContent = message;
       document.getElementById("toast-icon").textContent = icon;
+      
+      // Hide action button for regular toasts
+      const actionBtn = document.getElementById("toast-action-btn");
+      if (actionBtn) actionBtn.classList.add("hidden");
 
       toast.classList.remove("opacity-0", "pointer-events-none");
       toast.classList.add("opacity-100");
 
-      setTimeout(() => {
+      toastTimeoutId = setTimeout(() => {
         toast.classList.remove("opacity-100");
         toast.classList.add("opacity-0", "pointer-events-none");
       }, 4000);
     }
+    window.showToast = showToast;
+
+    function showAddedToCartToast(itemName) {
+      if (toastTimeoutId) clearTimeout(toastTimeoutId);
+      const toast = document.getElementById("toast-alert");
+      document.getElementById("toast-title").textContent = "ADDED TO CART";
+      document.getElementById("toast-message").textContent = `${itemName} added to your basket!`;
+      document.getElementById("toast-icon").textContent = "shopping_cart";
+      
+      // Show the 'GO TO CART' action button
+      const actionBtn = document.getElementById("toast-action-btn");
+      if (actionBtn) actionBtn.classList.remove("hidden");
+
+      toast.classList.remove("opacity-0", "pointer-events-none");
+      toast.classList.add("opacity-100");
+
+      toastTimeoutId = setTimeout(() => {
+        toast.classList.remove("opacity-100");
+        toast.classList.add("opacity-0", "pointer-events-none");
+      }, 5000);
+    }
+
+    async function requestBillFromGuest(method, isPrepaid = false) {
+      const tableNum = App.tableNumber;
+      try {
+        if (!isPrepaid) {
+          const activeOrders = await window.orderService.getActiveOrders(tableNum);
+          if (activeOrders.length > 0) {
+            showToast("SERVICE PENDING", "Cannot settle bill until all food is served.", "warning");
+            return;
+          }
+        }
+        const methodLabel = method === "upi" ? "UPI" : "Counter";
+        showToast("SENDING REQUEST", `Notifying steward to settle bill via ${methodLabel}...`, "sync");
+
+        // 1. Trigger the bill request via cartService
+        await window.cartService.requestBill(tableNum);
+
+        // 2. Decorate the latest order with the payment method in the timestamp for the proprietor dashboard
+        const allOrders = [...App.activeOrders, ...App.pastOrders];
+        if (allOrders.length > 0) {
+          const latestOrder = allOrders[0];
+          const rawTime = latestOrder.timestamp ? latestOrder.timestamp.split(" [")[0] : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const newTimestamp = `${rawTime} [${methodLabel}]`;
+
+          if (window.supabaseEnabled && window.supabaseClient) {
+            try {
+              const { error } = await window.supabaseClient
+                .from("orders")
+                .update({ timestamp: newTimestamp })
+                .eq("id", latestOrder.id);
+              if (error) throw error;
+            } catch (e) {
+              console.error("Supabase order timestamp update failed:", e);
+            }
+          }
+
+          // Always update locally
+          const localOrders = window.gpStorage.getOrders();
+          const target = localOrders.find(o => o.id === latestOrder.id);
+          if (target) {
+            target.timestamp = newTimestamp;
+            window.gpStorage.saveOrders(localOrders);
+          }
+        }
+
+        // Refresh data & UI
+        await refreshData();
+        renderOrdersMonitor();
+        showToast("BILL REQUESTED", `Steward notified. Settle via ${methodLabel}.`, "receipt_long");
+      } catch (err) {
+        console.error("Error requesting bill:", err);
+        showToast("REQUEST FAILED", "Unable to contact steward. Please try again.", "error");
+      }
+    }
+    window.requestBillFromGuest = requestBillFromGuest;
+
+    function openCheckoutModal() {
+      window.cartService.getCartSummary(App.menu).then((summary) => {
+        const modal = document.getElementById("checkout-modal");
+        if (!modal) return;
+
+        document.getElementById("checkout-total-preview").textContent = `₹${summary.grandTotal.toFixed(2)}`;
+
+        modal.classList.remove("hidden");
+        setTimeout(() => {
+          modal.classList.remove("opacity-0");
+          modal.querySelector("div").classList.remove("scale-90");
+        }, 50);
+      });
+    }
+    window.openCheckoutModal = openCheckoutModal;
+
+    function closeCheckoutModal() {
+      const modal = document.getElementById("checkout-modal");
+      if (!modal) return;
+      modal.classList.add("opacity-0");
+      modal.querySelector("div").classList.add("scale-90");
+      setTimeout(() => modal.classList.add("hidden"), 300);
+    }
+    window.closeCheckoutModal = closeCheckoutModal;
+
+    async function checkoutPrepaid(method) {
+      closeCheckoutModal();
+      const summary = await window.cartService.getCartSummary(App.menu);
+      const itemsList = summary.itemsList;
+
+      if (itemsList.length === 0) return;
+
+      // 1. Submit order to kitchen
+      const order = await window.orderService.submitOrder(itemsList, summary, App.tableNumber);
+
+      // 2. Clear cart
+      window.cartService.clearCart();
+
+      // 3. Immediately request the bill (Prepaid Checkout)
+      await requestBillFromGuest(method, true);
+
+      showToast("CHECKOUT SUCCESS", `Prepaid order #${order.id} sent to kitchen. Settle bill via ${method.toUpperCase()}...`, "restaurant");
+
+      navigateToTab("orders");
+    }
+    window.checkoutPrepaid = checkoutPrepaid;
+
+    async function checkoutPostpaid() {
+      closeCheckoutModal();
+      await dispatchOrder();
+    }
+    window.checkoutPostpaid = checkoutPostpaid;
+
+    async function updateFloatingBasketBar() {
+      const bar = document.getElementById("floating-basket-bar");
+      if (!bar) return;
+
+      const items = window.cartService.getCartItems();
+      const totalQty = Object.values(items).reduce((a, b) => a + b, 0);
+
+      // Only show bar on 'home' or 'menu' tabs when cart has items
+      const showOnTab = App.activeTab === "home" || App.activeTab === "menu";
+
+      if (totalQty > 0 && showOnTab) {
+        const summary = await window.cartService.getCartSummary(App.menu);
+        document.getElementById("floating-basket-count").textContent = `${totalQty} Item${totalQty > 1 ? 's' : ''} in Basket`;
+        document.getElementById("floating-basket-subtotal").textContent = `Estimated Total: ₹${summary.grandTotal.toFixed(2)}`;
+        bar.classList.remove("hidden");
+      } else {
+        bar.classList.add("hidden");
+      }
+    }
+    window.updateFloatingBasketBar = updateFloatingBasketBar;
   </script>
 </body>
 

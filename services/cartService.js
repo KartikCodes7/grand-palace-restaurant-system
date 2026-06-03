@@ -10,6 +10,8 @@ class CartService {
     
     // Check if Supabase schema is upgraded
     window.supabaseDbUpgraded = false;
+    window.supabaseOrdersHasSessionId = false;
+    window.supabaseFeedbackHasSessionId = false;
     this.schemaCheckPromise = this.checkSchemaUpgraded();
 
     // Background offline cart sync retry queue
@@ -60,31 +62,57 @@ class CartService {
   async checkSchemaUpgraded() {
     if (window.supabaseEnabled && window.supabaseClient) {
       try {
-        const { error } = await window.supabaseClient
+        // 1. Check if session management tables exist
+        const { error: sessionErr } = await window.supabaseClient
           .from("table_sessions")
           .select("session_id")
           .limit(1);
-        if (!error) {
+        if (!sessionErr) {
           window.supabaseDbUpgraded = true;
           console.log("👑 Grand Palace Backend: Session Management Schema is ACTIVE in Supabase.");
         } else {
           console.log("⚠️ Grand Palace Backend: Session Management Schema not detected in Supabase. Running in hybrid session isolation.");
         }
+
+        // 2. Check if orders table has session_id column
+        const { error: orderErr } = await window.supabaseClient
+          .from("orders")
+          .select("session_id")
+          .limit(1);
+        if (!orderErr) {
+          window.supabaseOrdersHasSessionId = true;
+          console.log("👑 Grand Palace Backend: orders.session_id column is ACTIVE in Supabase.");
+        } else {
+          console.log("⚠️ Grand Palace Backend: orders.session_id column not detected in Supabase.");
+        }
+
+        // 3. Check if feedback table has session_id column
+        const { error: feedbackErr } = await window.supabaseClient
+          .from("feedback")
+          .select("session_id")
+          .limit(1);
+        if (!feedbackErr) {
+          window.supabaseFeedbackHasSessionId = true;
+          console.log("👑 Grand Palace Backend: feedback.session_id column is ACTIVE in Supabase.");
+        } else {
+          console.log("⚠️ Grand Palace Backend: feedback.session_id column not detected in Supabase.");
+        }
       } catch (e) {
-        console.log("⚠️ Grand Palace Backend: Schema check error. Running in hybrid session isolation.");
+        console.log("⚠️ Grand Palace Backend: Schema check error. Running in hybrid session isolation.", e);
       }
     }
   }
 
   getGuestName() {
-    return localStorage.getItem("gp_guest_name") || "Guest";
+    const tableNum = this.getTableNumber();
+    return localStorage.getItem("gp_guest_name_t" + tableNum) || "Guest";
   }
 
   async setGuestName(name) {
     if (name && name.trim() !== "") {
-      localStorage.setItem("gp_guest_name", name.trim());
-      
       const tableNum = this.getTableNumber();
+      localStorage.setItem("gp_guest_name_t" + tableNum, name.trim());
+      
       // Try resolving active session
       let active = await this.resolveActiveSession(tableNum);
       if (!active) {
@@ -97,14 +125,16 @@ class CartService {
   }
 
   getSessionId() {
-    return localStorage.getItem("gp_current_session_id") || "";
+    const tableNum = this.getTableNumber();
+    return localStorage.getItem("gp_current_session_id_t" + tableNum) || "";
   }
 
   setSessionId(sid) {
+    const tableNum = this.getTableNumber();
     if (sid) {
-      localStorage.setItem("gp_current_session_id", sid);
+      localStorage.setItem("gp_current_session_id_t" + tableNum, sid);
     } else {
-      localStorage.removeItem("gp_current_session_id");
+      localStorage.removeItem("gp_current_session_id_t" + tableNum);
     }
   }
 
@@ -127,6 +157,12 @@ class CartService {
           .neq("status", "closed")
           .maybeSingle();
         if (error) throw error;
+        
+        if (data && this.isSessionStale(data)) {
+          console.log(`⚠️ Stale online table session detected for table ${tableNum}. Auto-clearing.`);
+          await this.clearTableSessions(tableNum);
+          return null;
+        }
         return data;
       } catch (e) {
         console.error("Supabase resolveActiveSession error:", e);
@@ -140,7 +176,30 @@ class CartService {
   resolveActiveSessionLocally(tableNum) {
     const sessions = window.gpStorage.getTableSessions();
     const active = sessions.find(s => s.table_number === tableNum && s.status !== "closed");
+    
+    if (active && this.isSessionStale(active)) {
+      console.log(`⚠️ Stale local table session detected for table ${tableNum}. Auto-clearing.`);
+      this.clearTableSessionsLocally(tableNum);
+      
+      // If it is the current guest's table, reset their guest name and current session id in localStorage!
+      if (tableNum === this.getTableNumber()) {
+        localStorage.removeItem("gp_guest_name_t" + tableNum);
+        localStorage.removeItem("gp_current_session_id_t" + tableNum);
+        this.cartData = {};
+        this.sharedCartItems = [];
+        this.onChange();
+      }
+      return null;
+    }
     return active || null;
+  }
+
+  isSessionStale(session) {
+    if (!session || !session.started_at) return false;
+    const start = new Date(session.started_at).getTime();
+    const now = Date.now();
+    const diffHours = (now - start) / (1000 * 60 * 60);
+    return diffHours > 6; // Stale if older than 6 hours
   }
 
   async createTableSession(tableNum, guestName) {
@@ -290,7 +349,14 @@ class CartService {
     const targetTable = tableNum || this.getTableNumber();
     if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
       try {
-        const active = await this.resolveActiveSession(targetTable);
+        // Direct query without going through resolveActiveSession to prevent recursion
+        const { data: active, error: fetchError } = await window.supabaseClient
+          .from("table_sessions")
+          .select("*")
+          .eq("table_number", targetTable)
+          .neq("status", "closed")
+          .maybeSingle();
+        if (fetchError) throw fetchError;
         if (active) {
           const { error } = await window.supabaseClient
             .from("table_sessions")
@@ -314,8 +380,8 @@ class CartService {
 
     // If it is the current guest's table, reset their guest name and current session id in localStorage!
     if (targetTable === this.getTableNumber()) {
-      localStorage.removeItem("gp_guest_name");
-      localStorage.removeItem("gp_current_session_id");
+      localStorage.removeItem("gp_guest_name_t" + targetTable);
+      localStorage.removeItem("gp_current_session_id_t" + targetTable);
       this.cartData = {};
       this.sharedCartItems = [];
       this.onChange();
@@ -419,7 +485,24 @@ class CartService {
 
 
   getTableNumber() {
-    return (window.App && window.App.tableNumber) ? window.App.tableNumber : "5";
+    // 1. Try URL search params (?table=X)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromParam = urlParams.get('table');
+      if (fromParam) return fromParam;
+    } catch (e) {}
+
+    // 2. Try URL pathname (/table/X)
+    try {
+      const pathMatch = window.location.pathname.match(/\/table\/(\d+)/i);
+      if (pathMatch) return pathMatch[1];
+    } catch (e) {}
+
+    // 3. Fallback to window.App (if exposed globally)
+    if (window.App && window.App.tableNumber) return window.App.tableNumber;
+
+    // 4. Default
+    return "5";
   }
 
   getCartItems() {
@@ -442,7 +525,7 @@ class CartService {
       return;
     }
 
-    if (window.supabaseEnabled && window.supabaseClient) {
+    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
       try {
         let query = window.supabaseClient
           .from("shared_carts")
@@ -491,12 +574,12 @@ class CartService {
   }
 
   async syncItemQtyToSupabase(itemId, targetQty) {
-    if (!window.supabaseEnabled || !window.supabaseClient) return;
+    if (!window.supabaseEnabled || !window.supabaseClient || !window.supabaseDbUpgraded) return;
     await this.queueCartSync(itemId, targetQty);
   }
 
   async syncItemQtyToSupabaseDirect(itemId, targetQty) {
-    if (!window.supabaseEnabled || !window.supabaseClient) return;
+    if (!window.supabaseEnabled || !window.supabaseClient || !window.supabaseDbUpgraded) return;
 
     const tableNum = this.getTableNumber();
     const guestName = this.getGuestName();
@@ -558,6 +641,12 @@ class CartService {
     const sessionId = this.getSessionId();
     if (!sessionId) {
       console.warn("No active session, cannot add to cart.");
+      if (window.showToast) {
+        window.showToast("SESSION REQUIRED", "Please enter your name to start ordering.", "person");
+      }
+      // Re-show guest name overlay
+      const overlay = document.getElementById("guest-name-overlay");
+      if (overlay) overlay.classList.remove("hidden");
       return;
     }
 
@@ -827,10 +916,11 @@ class CartService {
   }
 
   resetLocalSessionCart() {
+    const tableNum = this.getTableNumber();
     this.cartData = {};
     this.sharedCartItems = [];
-    localStorage.removeItem("gp_guest_name");
-    localStorage.removeItem("gp_current_session_id");
+    localStorage.removeItem("gp_guest_name_t" + tableNum);
+    localStorage.removeItem("gp_current_session_id_t" + tableNum);
     this.onChange();
   }
 }

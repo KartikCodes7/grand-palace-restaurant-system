@@ -23,7 +23,7 @@ class OrderService {
         // Map database naming schema back to client structures
         this.ordersList = data.map((order) => {
           // Re-create history completed tags based on status
-          const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served"];
+          const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served", "Settled"];
           const currentIdx = statusOrder.indexOf(order.status);
           const history = statusOrder.map((status, index) => ({
             status: status,
@@ -67,13 +67,23 @@ class OrderService {
 
     return this.ordersList.filter(o => {
       const matchTable = o.tableNumber === tableNumber;
-      const matchStatus = o.status !== "Served";
+      const matchStatus = o.status !== "Served" && o.status !== "Settled";
       if (!matchTable || !matchStatus) return false;
       
-      if (window.supabaseDbUpgraded) {
+      if (window.supabaseDbUpgraded && window.supabaseOrdersHasSessionId) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
       }
-      return true;
+      
+      // Fallback/hybrid session isolation based on timestamp + local session ID
+      const orderSessionId = o.sessionId || o.session_id;
+      if (orderSessionId) {
+        return orderSessionId === activeSession.session_id;
+      }
+      
+      // If order has no session ID (e.g. online DB orders when not upgraded), isolate by timestamp
+      const orderTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+      const sessionTime = activeSession.started_at ? new Date(activeSession.started_at).getTime() : 0;
+      return orderTime >= (sessionTime - 60000); // 1-minute clock drift grace period
     });
   }
 
@@ -84,13 +94,23 @@ class OrderService {
 
     return this.ordersList.filter(o => {
       const matchTable = o.tableNumber === tableNumber;
-      const matchStatus = o.status === "Served";
+      const matchStatus = o.status === "Served" || o.status === "Settled";
       if (!matchTable || !matchStatus) return false;
       
-      if (window.supabaseDbUpgraded) {
+      if (window.supabaseDbUpgraded && window.supabaseOrdersHasSessionId) {
         return o.sessionId === activeSession.session_id || o.session_id === activeSession.session_id;
       }
-      return true;
+      
+      // Fallback/hybrid session isolation based on timestamp + local session ID
+      const orderSessionId = o.sessionId || o.session_id;
+      if (orderSessionId) {
+        return orderSessionId === activeSession.session_id;
+      }
+      
+      // If order has no session ID (e.g. online DB orders when not upgraded), isolate by timestamp
+      const orderTime = o.createdAt ? new Date(o.createdAt).getTime() : 0;
+      const sessionTime = activeSession.started_at ? new Date(activeSession.started_at).getTime() : 0;
+      return orderTime >= (sessionTime - 60000); // 1-minute clock drift grace period
     });
   }
 
@@ -113,7 +133,7 @@ class OrderService {
           timestamp: timestamp
         };
 
-        if (window.supabaseDbUpgraded) {
+        if (window.supabaseDbUpgraded && window.supabaseOrdersHasSessionId) {
           newOrderRow.session_id = sessionId || null;
         }
 

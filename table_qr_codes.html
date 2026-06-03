@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Grand Palace - Table QR Codes</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #0C1E36;      /* Deep Royal Navy */
+      --secondary: #C5A880;    /* Muted Gold Accent */
+      --surface: #F9F7F4;      /* Cream / Off-white */
+      --text: #1E252D;
+      --border: #E5E0D8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--surface);
+      color: var(--text);
+      padding: 3rem 1.5rem;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 2rem;
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.75rem;
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 1.05rem;
+      color: #616D7A;
+      max-width: 600px;
+      margin: 0 auto 1.5rem auto;
+    }
+
+    /* Configuration Panel */
+    .config-panel {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      border-radius: 12px;
+      max-width: 700px;
+      margin: 0 auto 3rem auto;
+      box-shadow: 0 4px 20px rgba(12, 30, 54, 0.04);
+    }
+
+    .config-panel h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.25rem;
+      color: var(--primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .form-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 0.5rem;
+    }
+
+    .form-group input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: var(--text);
+      font-family: monospace;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--secondary);
+    }
+
+    .form-group button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .form-group button:hover {
+      background-color: #172F50;
+    }
+
+    /* QR Codes Grid */
+    .qr-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2.5rem;
+      margin-bottom: 4rem;
+    }
+
+    /* Table QR Card */
+    .qr-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(12, 30, 54, 0.03);
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .qr-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(12, 30, 54, 0.06);
+    }
+
+    .qr-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, var(--secondary), var(--primary));
+    }
+
+    .table-badge {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .table-subtitle {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--secondary);
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+
+    .qr-frame {
+      border: 1px solid var(--border);
+      padding: 1rem;
+      border-radius: 12px;
+      background-color: #FAF9F7;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 220px;
+      height: 220px;
+    }
+
+    .qr-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .scan-instruction {
+      font-size: 0.9rem;
+      color: #616D7A;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+
+    .qr-url {
+      font-size: 0.75rem;
+      color: #8C99A6;
+      word-break: break-all;
+      font-family: monospace;
+      padding: 0.4rem 0.6rem;
+      background: #F4F2EE;
+      border-radius: 6px;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Print styling */
+    @media print {
+      body {
+        background-color: white;
+        padding: 0;
+      }
+      .config-panel, .print-btn-container, header p {
+        display: none !important;
+      }
+      header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+      }
+      .qr-grid {
+        display: block;
+      }
+      .qr-card {
+        page-break-inside: avoid;
+        margin-bottom: 3rem;
+        border: 2px solid var(--border);
+        box-shadow: none !important;
+        transform: none !important;
+      }
+    }
+
+    .print-btn-container {
+      text-align: center;
+      margin-top: 1rem;
+      margin-bottom: 3rem;
+    }
+
+    .print-btn {
+      background-color: var(--secondary);
+      color: var(--primary);
+      border: 1px solid var(--secondary);
+      padding: 0.85rem 2rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(197, 168, 128, 0.2);
+    }
+
+    .print-btn:hover {
+      background-color: #B59870;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>The Grand Palace</h1>
+      <p>Scan to Join Table & Explore Gastronomic Masterpieces</p>
+      
+      <div class="print-btn-container">
+        <button class="print-btn" onclick="window.print()">🖨️ PRINT QR CARDS</button>
+      </div>
+    </header>
+
+    <!-- Base URL editor in case IP changes -->
+    <div class="config-panel">
+      <h3>QR Code Target Base URL</h3>
+      <p style="font-size: 0.85rem; margin-bottom: 0.75rem; color: #7F8C8D;">
+        If you access this project on a different IP or domain, update the URL below and click "Update QR Codes".
+      </p>
+      <div class="form-group">
+        <input type="text" id="base-url-input" value="http://10.91.246.157:8099/index.html">
+        <button onclick="updateQRs()">Update QR Codes</button>
+      </div>
+    </div>
+
+    <!-- QR Grid -->
+    <div class="qr-grid" id="qr-grid">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+
+  <script>
+    const tablesCount = 5;
+
+    function generateCards() {
+      const baseUrl = document.getElementById('base-url-input').value.trim();
+      const grid = document.getElementById('qr-grid');
+      grid.innerHTML = '';
+
+      for (let i = 1; i <= tablesCount; i++) {
+        const targetUrl = `${baseUrl}?table=${i}`;
+        const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(targetUrl)}&margin=10`;
+
+        const card = document.createElement('div');
+        card.className = 'qr-card';
+        card.innerHTML = `
+          <div class="table-badge">Table ${i}</div>
+          <div class="table-subtitle">Dining Session</div>
+          <div class="qr-frame">
+            <img src="${qrApiUrl}" alt="Table ${i} QR Code">
+          </div>
+          <div class="scan-instruction">Scan with phone to order</div>
+          <div class="qr-url" title="${targetUrl}">${targetUrl}</div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function updateQRs() {
+      generateCards();
+    }
+
+    // Initial render
+    generateCards();
+  </script>
+</body>
+</html>

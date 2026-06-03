@@ -12,6 +12,7 @@ class GrandPalaceStorage {
       TABLE_SESSIONS: "gp_table_sessions",
       SESSION_MEMBERS: "gp_session_members",
       SHARED_CARTS: "gp_shared_carts",
+      RECEIPTS: "gp_receipts_archive",
       VERSION: "gp_data_version"
     };
     
@@ -44,8 +45,8 @@ class GrandPalaceStorage {
   set(key, val) {
     try {
       localStorage.setItem(key, JSON.stringify(val));
-      // Dispatch a storage event manually in case changes occur in the SAME tab/window
-      const event = new Event("storage_manual_update");
+      // Dispatch a storage event manually with the key in detail to support selective updates
+      const event = new CustomEvent("storage_manual_update", { detail: { key: key } });
       window.dispatchEvent(event);
     } catch (e) {
       console.error(`Storage write error for key [${key}]:`, e);
@@ -218,6 +219,10 @@ class GrandPalaceStorage {
   getSessionMembers() { return this.get(this.KEYS.SESSION_MEMBERS) || []; }
   saveSessionMembers(members) { this.set(this.KEYS.SESSION_MEMBERS, members); }
   clearSessionMembers() { localStorage.removeItem(this.KEYS.SESSION_MEMBERS); }
+
+  getReceipts() { return this.get(this.KEYS.RECEIPTS) || []; }
+  saveReceipts(receipts) { this.set(this.KEYS.RECEIPTS, receipts); }
+  clearReceipts() { localStorage.removeItem(this.KEYS.RECEIPTS); }
 }
 
 window.gpStorage = new GrandPalaceStorage();

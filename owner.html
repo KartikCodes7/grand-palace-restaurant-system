@@ -135,19 +135,27 @@
       50% { transform: scale(1.02); background-color: rgba(119, 90, 25, 0.3); }
       100% { transform: scale(1); background-color: transparent; }
     }
+    /* Fade-in animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.35s ease-out;
+    }
   </style>
 </head>
 <body class="text-on-surface font-body-md overflow-x-hidden min-h-screen">
 
   <!-- Shared Sync Logic Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=6"></script>
-  <script src="shared/events.js?v=6"></script>
-  <script src="shared/supabase.js?v=6"></script>
-  <script src="services/menuService.js?v=6"></script>
-  <script src="services/cartService.js?v=6"></script>
-  <script src="services/orderService.js?v=6"></script>
-  <script src="services/feedbackService.js?v=6"></script>
+  <script src="shared/storage.js?v=12"></script>
+  <script src="shared/events.js?v=12"></script>
+  <script src="shared/supabase.js?v=12"></script>
+  <script src="services/menuService.js?v=12"></script>
+  <script src="services/cartService.js?v=12"></script>
+  <script src="services/orderService.js?v=12"></script>
+  <script src="services/feedbackService.js?v=12"></script>
 
   <!-- MOCK LOGIN PANEL OVERLAY -->
   <div id="login-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
@@ -515,8 +523,12 @@
             <span id="modal-receipt-subtotal">₹0.00</span>
           </div>
           <div class="flex justify-between">
-            <span class="text-on-surface-variant/70">GST (5%):</span>
+            <span class="text-on-surface-variant/70">Luxury Tax (8%):</span>
             <span id="modal-receipt-tax">₹0.00</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-on-surface-variant/70">Service Charge (10%):</span>
+            <span id="modal-receipt-service-charge">₹0.00</span>
           </div>
           <div class="flex justify-between border-t border-dashed border-outline-variant/35 pt-1.5 text-xs text-primary font-bold">
             <span>Grand Total:</span>
@@ -798,6 +810,16 @@
       updateNetworkStatusUI();
     }
 
+    // Debounced Local Data Sync to prevent concurrent network triggers
+    let syncTimeoutId = null;
+    function queueSyncLocalData() {
+      if (syncTimeoutId) clearTimeout(syncTimeoutId);
+      syncTimeoutId = setTimeout(async () => {
+        await syncLocalData();
+        renderDashboard();
+      }, 150); // 150ms coalesce window to capture multiple simultaneous updates (e.g. order items inserts)
+    }
+
     // Consolidated Realtime Channels with Memory Leak Protection (Scope 6)
     let ownerRealtimeChannels = [];
     function subscribeToOwnerRealtimeChannels() {
@@ -821,8 +843,7 @@
           } else if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "Ready" && payload.old && payload.old.status !== "Ready") {
             triggerReadyChime(payload.new.id);
           }
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(ordersChan);
@@ -832,8 +853,7 @@
         .channel("realtime:owner_order_items")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_items" }, async () => {
           console.log("🔥 Realtime: Order items received, syncing dashboard...");
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(itemsChan);
@@ -844,8 +864,7 @@
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedback" }, async () => {
           console.log("🔥 Realtime: Guest submitted new feedback review!");
           playGoldChime();
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(feedbackChan);
@@ -855,8 +874,7 @@
         .channel("realtime:owner_menu")
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
           console.log("🔥 Realtime: Menu items updated!");
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(menuChan);
@@ -869,8 +887,7 @@
           if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "bill_requested" && payload.old && payload.old.status !== "bill_requested") {
             playNewOrderChime();
           }
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(sessionsChan);
@@ -880,8 +897,7 @@
         .channel("realtime:owner_session_members")
         .on("postgres_changes", { event: "*", schema: "public", table: "session_members" }, async () => {
           console.log("🔥 Realtime: Guest joined/left session!");
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(membersChan);
@@ -891,8 +907,7 @@
         .channel("realtime:owner_shared_carts")
         .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts" }, async () => {
           console.log("🔥 Realtime: Seated guest cart update received!");
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         })
         .subscribe();
       ownerRealtimeChannels.push(cartsChan);
@@ -907,6 +922,7 @@
       console.log(`⏱️ Owner Heartbeat: Polling loop interval scheduled at ${intervalMs / 1000}s.`);
       
       ownerHeartbeatIntervalId = setInterval(async () => {
+        if (document.hidden) return; // Skip background processing to conserve memory and CPU load
         if (Dashboard.isAuthenticated) {
           const beforeActiveCount = Dashboard.orders.filter(o => o.status !== "Served").length;
           
@@ -931,19 +947,16 @@
       if (window.gpEvents) {
         window.gpEvents.onOrdersUpdated(async () => {
           playGoldChime();
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         });
         
         window.gpEvents.onMenuUpdated(async () => {
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         });
         
         window.gpEvents.onFeedbacksUpdated(async () => {
           playGoldChime();
-          await syncLocalData();
-          renderDashboard();
+          queueSyncLocalData();
         });
       }
 
@@ -1010,6 +1023,24 @@
     }
 
     /**
+     * Helper to check if an order belongs to the given active session (handles timestamp fallback when session_id column is missing in online DB)
+     */
+    function isOrderInSession(order, activeSess) {
+      if (!activeSess) return false;
+      if (order.tableNumber !== activeSess.table_number) return false;
+      
+      const orderSessionId = order.sessionId || order.session_id;
+      if (orderSessionId) {
+        return orderSessionId === activeSess.session_id;
+      }
+      
+      // Timestamp fallback
+      const orderTime = order.createdAt ? new Date(order.createdAt).getTime() : 0;
+      const sessionTime = activeSess.started_at ? new Date(activeSess.started_at).getTime() : 0;
+      return orderTime >= (sessionTime - 60000);
+    }
+
+    /**
      * Dashboard initializer
      */
     async function initializeDashboard() {
@@ -1032,7 +1063,7 @@
       Dashboard.allSessions = await window.cartService.getAllSessions();
       Dashboard.activeSessions = Dashboard.allSessions.filter(s => s.status !== "closed");
       
-      if (window.supabaseEnabled && window.supabaseClient) {
+      if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
         try {
           await window.orderService.syncOrders();
         } catch(e) {}
@@ -1041,19 +1072,38 @@
           const { data: cartData, error: cartErr } = await window.supabaseClient
             .from("shared_carts")
             .select("*");
-          if (!cartErr) Dashboard.sharedCarts = cartData || [];
-        } catch(e) {}
+          if (!cartErr) {
+            Dashboard.sharedCarts = cartData || [];
+          } else {
+            Dashboard.sharedCarts = window.gpStorage.getSharedCarts() || [];
+          }
+        } catch(e) {
+          Dashboard.sharedCarts = window.gpStorage.getSharedCarts() || [];
+        }
       } else {
+        if (window.supabaseEnabled && window.supabaseClient) {
+          try {
+            await window.orderService.syncOrders();
+          } catch(e) {}
+        }
         Dashboard.sharedCarts = window.gpStorage.getSharedCarts() || [];
       }
       Dashboard.orders = window.orderService.ordersList;
       Dashboard.feedbacks = await window.feedbackService.getFeedbackLogs();
     }
 
-    /**
-     * Core renderer orchestrator
-     */
+    let renderDashboardFrameId = null;
     function renderDashboard() {
+      if (renderDashboardFrameId) cancelAnimationFrame(renderDashboardFrameId);
+      renderDashboardFrameId = requestAnimationFrame(() => {
+        renderDashboardDirect();
+      });
+    }
+
+    /**
+     * Core renderer orchestrator (direct synchronous updates)
+     */
+    function renderDashboardDirect() {
       renderMetrics();
       renderCategoryRevenue();
       renderTopSellingDishes();
@@ -1069,7 +1119,7 @@
      */
     function renderMetrics() {
       // 1. Total revenue (Subtotal of all SERVED orders)
-      const servedOrders = Dashboard.orders.filter(o => o.status === "Served");
+      const servedOrders = Dashboard.orders.filter(o => o.status === "Served" || o.status === "Settled");
       const totalRevenue = servedOrders.reduce((sum, o) => sum + o.subtotal, 0);
       document.getElementById("metrics-revenue").textContent = `₹${totalRevenue.toLocaleString()}`;
 
@@ -1174,7 +1224,7 @@
       };
 
       // Aggregate revenue from completed orders
-      const servedOrders = Dashboard.orders.filter(o => o.status === "Served");
+      const servedOrders = Dashboard.orders.filter(o => o.status === "Served" || o.status === "Settled");
       servedOrders.forEach((order) => {
         order.items.forEach((oi) => {
           const menuItem = Dashboard.menu.find(m => m.name === oi.name);
@@ -1214,7 +1264,7 @@
 
       const itemSalesCount = {};
       
-      Dashboard.orders.filter(o => o.status === "Served").forEach((order) => {
+      Dashboard.orders.filter(o => o.status === "Served" || o.status === "Settled").forEach((order) => {
         order.items.forEach((oi) => {
           itemSalesCount[oi.name] = (itemSalesCount[oi.name] || 0) + oi.quantity;
         });
@@ -1342,7 +1392,7 @@
       container.innerHTML = "";
 
       const activeOrders = Dashboard.orders.filter((o) => {
-        if (o.status === "Served") return false;
+        if (o.status === "Served" || o.status === "Settled") return false;
         
         // Search filter matching
         const matchId = o.id.toLowerCase().includes(searchQuery);
@@ -1413,7 +1463,7 @@
           }
         }
 
-        itemRow.className = `bg-white p-4.5 rounded-xl border ${borderClass} flex flex-col gap-3 relative transition-all shadow-sm`;
+        itemRow.className = `bg-white p-4 rounded-xl border ${borderClass} flex flex-col gap-3 relative transition-all shadow-sm`;
 
         // Build visible items list
         const itemsDetail = visibleItems.map(i => `<span class="font-bold text-primary">${i.quantity}x</span> ${i.name}`).join(", ");
@@ -1706,12 +1756,12 @@
 
         // 3. Resolve active unserved orders for this table & session
         const activeOrders = activeSess && Dashboard.orders
-          ? Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id) && o.status !== "Served")
+          ? Dashboard.orders.filter(o => isOrderInSession(o, activeSess) && o.status !== "Served" && o.status !== "Settled")
           : [];
 
         // 4. Resolve completed served orders for this table & session
         const completedOrders = activeSess && Dashboard.orders
-          ? Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id) && o.status === "Served")
+          ? Dashboard.orders.filter(o => isOrderInSession(o, activeSess) && (o.status === "Served" || o.status === "Settled"))
           : [];
 
         // 5. Determine dynamic status
@@ -1771,7 +1821,11 @@
           `;
 
           if (activeSess.status === "paid") {
-            actionButton = `<button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-green-500 shadow-sm" onclick="clearOwnerTable('${tableNum}')">Settle & Clear Table</button>`;
+            if (activeOrders.length > 0) {
+              actionButton = `<button class="w-full bg-neutral-200 text-neutral-400 font-bold py-1.5 px-2 text-[9px] font-mono rounded uppercase tracking-wider border border-neutral-300/40 hover:bg-neutral-300" onclick="alert('This table cannot be cleared because food service is still pending.')">Settle & Clear Table</button>`;
+            } else {
+              actionButton = `<button class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-green-500 shadow-sm" onclick="clearOwnerTable('${tableNum}')">Settle & Clear Table</button>`;
+            }
           } else if (activeSess.status === "bill_requested") {
             actionButton = `
               <div class="flex flex-col gap-1 w-full">
@@ -1831,7 +1885,7 @@
 
       try {
         // Generate and save receipt
-        const sessionOrders = Dashboard.orders.filter(o => o.tableNumber === tableNum && (o.sessionId === activeSess.session_id || o.session_id === activeSess.session_id));
+        const sessionOrders = Dashboard.orders.filter(o => isOrderInSession(o, activeSess));
         
         const consolidated = {};
         let subtotal = 0;
@@ -1911,7 +1965,7 @@
               total: grandTotal,
               timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} [${paymentMethod}]`
             };
-            if (window.supabaseDbUpgraded) {
+            if (window.supabaseDbUpgraded && window.supabaseOrdersHasSessionId) {
               newOrderRow.session_id = activeSess.session_id;
             }
             
@@ -1955,7 +2009,6 @@
         playGoldChime();
         await syncLocalData();
         renderDashboard();
-        renderArchiveList();
 
         alert(`Payment Completed for Table ${tableNum}! Receipt ${receiptId} generated and archived.`);
       } catch (err) {
@@ -1984,6 +2037,13 @@
         return;
       }
 
+      // Check unserved orders
+      const unserved = Dashboard.orders.filter(o => isOrderInSession(o, activeSess) && o.status !== "Served" && o.status !== "Settled");
+      if (unserved.length > 0) {
+        alert("This table cannot be settled and cleared because food service is still pending.");
+        return;
+      }
+
       if (confirm(`Are you sure you want to Settle & Clear Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
         try {
           // Clear active session and its shared carts
@@ -2002,6 +2062,7 @@
     // Start stopwatch live timer update loop (lightweight targeted DOM selector updates)
     if (window.ownerStopwatchInterval) clearInterval(window.ownerStopwatchInterval);
     window.ownerStopwatchInterval = setInterval(() => {
+      if (document.hidden) return; // Conserve CPU when window is in the background
       if (!Dashboard.isAuthenticated) return;
       
       // Update order stopwatches in real-time
@@ -2116,6 +2177,8 @@
       document.getElementById("modal-receipt-meta").textContent = `Table ${r.tableNumber} • ${r.time} • ${r.date}`;
       document.getElementById("modal-receipt-subtotal").textContent = `₹${r.subtotal.toFixed(2)}`;
       document.getElementById("modal-receipt-tax").textContent = `₹${r.taxes.toFixed(2)}`;
+      const svcChgEl = document.getElementById("modal-receipt-service-charge");
+      if (svcChgEl) svcChgEl.textContent = `₹${(r.serviceCharge || 0).toFixed(2)}`;
       document.getElementById("modal-receipt-total").textContent = `₹${r.grandTotal.toFixed(2)}`;
       document.getElementById("modal-receipt-method").textContent = r.paymentMethod;
       document.getElementById("modal-receipt-footer-session").textContent = `Session: ${r.sessionId}`;
