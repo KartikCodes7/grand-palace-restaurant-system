@@ -176,6 +176,28 @@
     .animate-fadeIn {
       animation: fadeIn 0.35s ease-out;
     }
+
+    /* iOS Safe area utility */
+    .pb-safe {
+      padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)) !important;
+    }
+
+    /* Extra small screen helper (for viewports < 400px) */
+    @media (max-width: 399px) {
+      .xs-flex-col {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+      }
+      .xs-gap-2 {
+        gap: 0.5rem !important;
+      }
+      .xs-text-left {
+        text-align: left !important;
+      }
+      .xs-w-full {
+        width: 100% !important;
+      }
+    }
   </style>
 </head>
 
@@ -183,32 +205,32 @@
 
   <!-- Back-end API Services Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=15"></script>
-  <script src="shared/events.js?v=15"></script>
-  <script src="shared/supabase.js?v=15"></script>
-  <script src="services/menuService.js?v=15"></script>
-  <script src="services/cartService.js?v=15"></script>
-  <script src="services/orderService.js?v=15"></script>
-  <script src="services/feedbackService.js?v=15"></script>
-  <script src="services/recommendationService.js?v=15"></script>
+  <script src="shared/storage.js?v=16"></script>
+  <script src="shared/events.js?v=16"></script>
+  <script src="shared/supabase.js?v=16"></script>
+  <script src="services/menuService.js?v=16"></script>
+  <script src="services/cartService.js?v=16"></script>
+  <script src="services/orderService.js?v=16"></script>
+  <script src="services/feedbackService.js?v=16"></script>
+  <script src="services/recommendationService.js?v=16"></script>
 
   <!-- Notification Success Alert Toast -->
   <div id="toast-alert"
-    class="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none w-[90%] max-w-sm">
-    <div class="glass-card px-6 py-4 shadow-xl border-l-4 border-secondary flex items-start gap-4">
-      <span class="material-symbols-outlined text-secondary" id="toast-icon">info</span>
+    class="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none w-[92%] max-w-[320px]">
+    <div class="glass-card px-4 py-2.5 shadow-xl border-l-4 border-secondary flex items-start gap-3">
+      <span class="material-symbols-outlined text-secondary text-lg" id="toast-icon">info</span>
       <div class="flex-grow">
-        <p class="font-label-caps text-[10px] text-secondary tracking-widest uppercase" id="toast-title">ALERT</p>
-        <p class="text-sm text-primary" id="toast-message">Message details...</p>
+        <p class="font-label-caps text-[9px] text-secondary tracking-widest uppercase font-semibold" id="toast-title">ALERT</p>
+        <p class="text-xs text-primary leading-tight" id="toast-message">Message details...</p>
       </div>
-      <button id="toast-action-btn" class="hidden bg-primary text-white px-3 py-1.5 rounded font-label-caps text-[9px] tracking-wider uppercase active:scale-95 transition-all shrink-0 self-center font-bold shadow-sm" onclick="navigateToTab('cart')">GO TO CART →</button>
+      <button id="toast-action-btn" class="hidden bg-primary text-white px-2 py-1 rounded font-label-caps text-[8.5px] tracking-wider uppercase active:scale-95 transition-all shrink-0 self-center font-bold shadow-sm" onclick="navigateToTab('cart')">GO TO CART →</button>
     </div>
   </div>
 
   <!-- Header Shell -->
   <header
     class="fixed top-0 w-full z-40 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 bg-surface/75 backdrop-blur-md border-b border-outline-variant/30">
-    <div class="font-headline-md text-headline-md text-primary tracking-tight cursor-pointer"
+    <div class="font-headline-md text-lg sm:text-xl md:text-2xl font-bold text-primary tracking-tight cursor-pointer"
       onclick="navigateToTab('home')">
       The Grand Palace
     </div>
@@ -514,18 +536,18 @@
 
   <!-- FLOATING STICKY BASKET BAR -->
   <div id="floating-basket-bar"
-    class="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 w-[90%] max-w-sm bg-primary/95 text-white p-4 rounded-xl border border-secondary/40 shadow-xl flex items-center justify-between gap-4 backdrop-blur-md hidden animate-fadeIn cursor-pointer"
+    class="fixed bottom-24 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-[320px] bg-primary/95 text-white p-3 rounded-xl border border-secondary/40 shadow-xl flex items-center justify-between gap-3 backdrop-blur-md hidden animate-fadeIn cursor-pointer"
     onclick="navigateToTab('cart')">
-    <div class="flex items-center gap-3">
-      <span class="material-symbols-outlined text-secondary text-2xl animate-bounce">shopping_basket</span>
+    <div class="flex items-center gap-2.5">
+      <span class="material-symbols-outlined text-secondary text-xl animate-bounce">shopping_basket</span>
       <div>
-        <p class="font-bold text-xs tracking-wider" id="floating-basket-count">0 Items in Basket</p>
-        <p class="text-[10px] text-on-primary-container mt-0.5" id="floating-basket-subtotal">Estimated Total: ₹0.00</p>
+        <p class="font-bold text-[11px] tracking-wider" id="floating-basket-count">0 Items in Basket</p>
+        <p class="text-[9px] text-on-primary-container mt-0.5" id="floating-basket-subtotal">Estimated Total: ₹0.00</p>
       </div>
     </div>
-    <div class="flex items-center gap-1.5 font-label-caps text-[10px] text-secondary font-bold shrink-0">
+    <div class="flex items-center gap-1 font-label-caps text-[8.5px] text-secondary font-bold shrink-0">
       <span>GO TO BASKET</span>
-      <span class="material-symbols-outlined text-xs">arrow_forward_ios</span>
+      <span class="material-symbols-outlined text-[9px]">arrow_forward_ios</span>
     </div>
   </div>
 
@@ -534,7 +556,7 @@
     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300"
     onclick="closeCheckoutModal()">
     <div
-      class="w-full max-w-sm bg-surface p-6 rounded-2xl flex flex-col gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
+      class="w-full max-w-sm bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 sm:gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
       onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
         <h4 class="font-headline-md text-base text-primary">Palatial Checkout</h4>
@@ -592,7 +614,7 @@
     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300"
     onclick="closeFeedbackModal()">
     <div
-      class="w-full max-w-sm bg-surface p-6 rounded-2xl flex flex-col gap-4 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
+      class="w-full max-w-sm bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
       onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
         <h4 class="font-headline-md text-base text-primary">Dining Reflections</h4>
@@ -666,7 +688,7 @@
 
   <!-- GUEST NAME MODAL ENTRY OVERLAY -->
   <div id="guest-name-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-surface p-8 rounded-2xl flex flex-col gap-6 border border-outline-variant/35 shadow-2xl relative animate-float">
+    <div class="w-full max-w-sm bg-surface p-5 sm:p-8 rounded-2xl flex flex-col gap-4 sm:gap-6 border border-outline-variant/35 shadow-2xl relative animate-float">
       <div class="text-center flex flex-col gap-1.5">
         <p class="font-label-caps text-xs text-secondary tracking-widest uppercase font-semibold">GASTRONOMY GROUP DINING</p>
         <h2 class="font-display-lg-mobile text-2xl text-primary leading-none">Welcome to The Grand Palace</h2>
@@ -1118,7 +1140,7 @@
         };
 
         itemCard.innerHTML = `
-          <div class="relative overflow-hidden h-44 w-full bg-surface-container rounded-t-xl">
+          <div class="relative overflow-hidden h-28 sm:h-44 w-full bg-surface-container rounded-t-xl">
             <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
           </div>
           <div class="p-3.5 flex flex-col gap-1">
@@ -1226,9 +1248,9 @@
         const inStock = item.inStock !== false;
 
         if (!inStock) {
-          card.className = "glass-card p-4 rounded-xl flex flex-col border border-outline-variant/30 relative overflow-hidden opacity-55 saturate-50 transition-all";
+          card.className = "glass-card p-3.5 sm:p-4 rounded-xl flex flex-col border border-outline-variant/30 relative overflow-hidden opacity-55 saturate-50 transition-all";
         } else {
-          card.className = "glass-card p-4 rounded-xl flex flex-col border border-outline-variant/30 relative overflow-hidden active:scale-[0.99] transition-transform";
+          card.className = "glass-card p-3.5 sm:p-4 rounded-xl flex flex-col border border-outline-variant/30 relative overflow-hidden active:scale-[0.99] transition-transform";
         }
 
         const cartQty = window.cartService.getItemQuantity(item.id);
@@ -1288,19 +1310,19 @@
         }
 
         card.innerHTML = `
-          <div class="flex gap-4">
-            <div class="relative overflow-hidden rounded-xl shrink-0 w-28 h-28 bg-surface-container border border-outline-variant/25 shadow-sm">
+          <div class="flex gap-3 sm:gap-4">
+            <div class="relative overflow-hidden rounded-xl shrink-0 w-20 h-20 sm:w-28 sm:h-28 bg-surface-container border border-outline-variant/25 shadow-sm">
               <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
-            <div class="flex flex-col justify-between flex-grow">
+            <div class="flex flex-col justify-between flex-grow min-w-0">
               <div>
                 <div class="flex justify-between items-start gap-1">
                   <h4 class="font-bold text-xs text-primary leading-tight">${item.name}</h4>
                   <span class="text-xs font-mono font-bold text-secondary shrink-0">₹${item.price}</span>
                 </div>
-                <p class="text-[10.5px] text-on-surface-variant leading-snug mt-1 max-w-[210px]">${item.description}</p>
+                <p class="text-[10.5px] text-on-surface-variant leading-snug mt-1 max-w-[210px] sm:max-w-none truncate sm:whitespace-normal sm:overflow-visible">${item.description}</p>
               </div>
-              <div class="flex justify-end mt-2">
+              <div class="flex justify-end mt-1.5">
                 ${actionBtn}
               </div>
             </div>
@@ -1344,7 +1366,7 @@
           : `<span class="bg-secondary/10 px-1.5 py-0.5 rounded text-[8.5px] font-bold text-secondary">${window.cartService.getGuestName()} (x${ci.quantity})</span>`;
 
         const itemRow = document.createElement("div");
-        itemRow.className = "glass-card p-3 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs";
+        itemRow.className = "glass-card p-3 rounded-xl border border-outline-variant/20 flex justify-between items-center text-xs gap-3 xs-flex-col xs-items-start";
         itemRow.innerHTML = `
           <div class="flex items-center gap-3">
             <div class="relative overflow-hidden rounded-xl w-16 h-16 bg-surface-container border border-outline-variant/20 shadow-sm shrink-0">
@@ -1356,7 +1378,7 @@
               <div class="flex flex-wrap gap-1 mt-1">${contributorsStr}</div>
             </div>
           </div>
-          <div class="flex items-center gap-4">
+          <div class="flex items-center justify-between gap-4 xs-w-full xs-border-t xs-border-dashed xs-border-outline-variant/15 xs-pt-2 sm:xs-border-t-0 sm:xs-pt-0 shrink-0">
             <div class="flex items-center border border-outline-variant/30 rounded-lg bg-white">
               <button class="px-2.5 py-1 text-on-surface-variant hover:text-secondary font-bold text-xs" onclick="window.cartService.removeFromCart('${ci.item.id}')">-</button>
               <span class="px-2.5 text-xs font-mono font-bold text-primary">${ci.quantity}</span>
