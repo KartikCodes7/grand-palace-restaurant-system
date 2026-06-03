@@ -183,14 +183,14 @@
 
   <!-- Back-end API Services Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=13"></script>
-  <script src="shared/events.js?v=13"></script>
-  <script src="shared/supabase.js?v=13"></script>
-  <script src="services/menuService.js?v=13"></script>
-  <script src="services/cartService.js?v=13"></script>
-  <script src="services/orderService.js?v=13"></script>
-  <script src="services/feedbackService.js?v=13"></script>
-  <script src="services/recommendationService.js?v=13"></script>
+  <script src="shared/storage.js?v=14"></script>
+  <script src="shared/events.js?v=14"></script>
+  <script src="shared/supabase.js?v=14"></script>
+  <script src="services/menuService.js?v=14"></script>
+  <script src="services/cartService.js?v=14"></script>
+  <script src="services/orderService.js?v=14"></script>
+  <script src="services/feedbackService.js?v=14"></script>
+  <script src="services/recommendationService.js?v=14"></script>
 
   <!-- Notification Success Alert Toast -->
   <div id="toast-alert"
@@ -459,6 +459,9 @@
           <!-- Populated dynamically with High-Fidelity status tracking timeline (or empty state) -->
         </div>
       </section>
+
+      <!-- Bill Payment Section -->
+      <div id="bill-payment-section" class="hidden"></div>
 
       <!-- Order History & Bill Summary -->
       <section class="flex flex-col gap-4">
