@@ -149,13 +149,13 @@
 
   <!-- Shared Sync Logic Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=12"></script>
-  <script src="shared/events.js?v=12"></script>
-  <script src="shared/supabase.js?v=12"></script>
-  <script src="services/menuService.js?v=12"></script>
-  <script src="services/cartService.js?v=12"></script>
-  <script src="services/orderService.js?v=12"></script>
-  <script src="services/feedbackService.js?v=12"></script>
+  <script src="shared/storage.js?v=13"></script>
+  <script src="shared/events.js?v=13"></script>
+  <script src="shared/supabase.js?v=13"></script>
+  <script src="services/menuService.js?v=13"></script>
+  <script src="services/cartService.js?v=13"></script>
+  <script src="services/orderService.js?v=13"></script>
+  <script src="services/feedbackService.js?v=13"></script>
 
   <!-- MOCK LOGIN PANEL OVERLAY -->
   <div id="login-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
@@ -1834,7 +1834,12 @@
               </div>
             `;
           } else {
-            actionButton = `<button class="w-full bg-neutral-200 text-neutral-400 font-bold py-1.5 px-2 text-[9px] font-mono rounded uppercase tracking-wider border border-neutral-300/40 hover:bg-neutral-300" onclick="alert('This table cannot be cleared because food service or payment is still pending.')">Clear Table</button>`;
+            const totalOrders = activeOrders.length + completedOrders.length;
+            if (totalOrders === 0) {
+              actionButton = `<button class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-1.5 px-2 text-[9px] font-mono rounded active:scale-95 transition-all uppercase tracking-wider border border-amber-500 shadow-sm" onclick="clearOwnerTable('${tableNum}')">Clear Vacant Table</button>`;
+            } else {
+              actionButton = `<button class="w-full bg-neutral-200 text-neutral-400 font-bold py-1.5 px-2 text-[9px] font-mono rounded uppercase tracking-wider border border-neutral-300/40 hover:bg-neutral-300" onclick="alert('This table cannot be cleared because food service or payment is still pending.')">Clear Table</button>`;
+            }
           }
         } else {
           detailsHtml = `
@@ -2031,20 +2036,25 @@
         return;
       }
 
-      // Check if unpaid!
-      if (activeSess.status !== "paid") {
-        alert("This table cannot be cleared because food service or payment is still pending.");
-        return;
+      // Check if there are orders
+      const sessionOrders = Dashboard.orders.filter(o => isOrderInSession(o, activeSess));
+      
+      if (sessionOrders.length > 0) {
+        // Check if unpaid!
+        if (activeSess.status !== "paid") {
+          alert("This table cannot be cleared because food service or payment is still pending.");
+          return;
+        }
+
+        // Check unserved orders
+        const unserved = sessionOrders.filter(o => o.status !== "Served" && o.status !== "Settled");
+        if (unserved.length > 0) {
+          alert("This table cannot be settled and cleared because food service is still pending.");
+          return;
+        }
       }
 
-      // Check unserved orders
-      const unserved = Dashboard.orders.filter(o => isOrderInSession(o, activeSess) && o.status !== "Served" && o.status !== "Settled");
-      if (unserved.length > 0) {
-        alert("This table cannot be settled and cleared because food service is still pending.");
-        return;
-      }
-
-      if (confirm(`Are you sure you want to Settle & Clear Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
+      if (confirm(`Are you sure you want to Clear Table ${tableNum}? This closes active dining session, clears carts, and releases the table.`)) {
         try {
           // Clear active session and its shared carts
           await window.cartService.clearTableSessions(tableNum);
