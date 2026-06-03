@@ -143,19 +143,24 @@
     .animate-fadeIn {
       animation: fadeIn 0.35s ease-out;
     }
+    @media (max-width: 1023px) {
+      .mobile-hidden {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body class="text-on-surface font-body-md overflow-x-hidden min-h-screen">
 
   <!-- Shared Sync Logic Loading -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="shared/storage.js?v=14"></script>
-  <script src="shared/events.js?v=14"></script>
-  <script src="shared/supabase.js?v=14"></script>
-  <script src="services/menuService.js?v=14"></script>
-  <script src="services/cartService.js?v=14"></script>
-  <script src="services/orderService.js?v=14"></script>
-  <script src="services/feedbackService.js?v=14"></script>
+  <script src="shared/storage.js?v=15"></script>
+  <script src="shared/events.js?v=15"></script>
+  <script src="shared/supabase.js?v=15"></script>
+  <script src="services/menuService.js?v=15"></script>
+  <script src="services/cartService.js?v=15"></script>
+  <script src="services/orderService.js?v=15"></script>
+  <script src="services/feedbackService.js?v=15"></script>
 
   <!-- MOCK LOGIN PANEL OVERLAY -->
   <div id="login-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
@@ -204,6 +209,22 @@
     </div>
   </header>
 
+  <!-- MOBILE VIEW NAVIGATION TABS (Only visible on screens < lg) -->
+  <div class="lg:hidden sticky top-20 bg-surface/95 backdrop-blur-md z-30 border-b border-outline-variant/30 px-4 py-3 flex justify-between gap-1 overflow-x-auto shadow-sm select-none" id="mobile-dashboard-tabs">
+    <button class="mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-primary text-white" onclick="switchMobileTab('kds', this)">
+      🍳 KDS KITCHEN
+    </button>
+    <button class="mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-white text-primary border border-outline-variant/20" onclick="switchMobileTab('tables', this)">
+      🪑 TABLE MAP
+    </button>
+    <button class="mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-white text-primary border border-outline-variant/20" onclick="switchMobileTab('analytics', this)">
+      📊 ANALYTICS
+    </button>
+    <button class="mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-white text-primary border border-outline-variant/20" onclick="switchMobileTab('ops', this)">
+      ⚙️ STOCK & ARCHIVE
+    </button>
+  </div>
+
   <!-- MAIN DASHBOARD CONTENT -->
   <main class="max-w-container-max mx-auto p-6 md:p-margin-desktop grid grid-cols-1 lg:grid-cols-12 gap-8 hidden" id="dashboard-content">
     
@@ -211,7 +232,7 @@
     <div class="lg:col-span-7 flex flex-col gap-8">
       
       <!-- TOP METRIC CARDS -->
-      <section class="grid grid-cols-2 sm:grid-cols-6 gap-4">
+      <section id="section-metrics-grid" class="grid grid-cols-2 sm:grid-cols-6 gap-4">
         
         <div class="glass-card p-4 rounded-xl flex flex-col justify-between gap-2 shadow-sm">
           <div>
@@ -266,7 +287,7 @@
       </section>
 
       <!-- HOURLY SALES BAR GRAPH -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+      <section id="section-hourly-sales" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
           <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Hourly Sales Distribution</h4>
           <span class="text-[9px] text-on-surface-variant font-mono uppercase">Fine-Dining Peaks</span>
@@ -308,7 +329,7 @@
       </section>
 
       <!-- ANALYTICS GRID: Revenue by Category & Top Selling Leaderboard -->
-      <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section id="section-category-leaderboard" class="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         <!-- Category Revenue Fills -->
         <div class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
@@ -329,7 +350,7 @@
       </section>
 
       <!-- SESSION OPERATIONS ANALYTICS CARD -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+      <section id="section-session-analytics" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
           <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Dining Session Analytics</h4>
           <span class="text-[9px] text-on-surface-variant font-mono uppercase">Weekly Turnovers</span>
@@ -359,7 +380,7 @@
       </section>
 
       <!-- TABLE MANAGEMENT SYSTEM GRID -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+      <section id="section-table-management" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
           <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Real-Time Table Management</h4>
           <span class="text-[9px] text-on-surface-variant font-mono uppercase">12 Dining Arenas</span>
@@ -392,7 +413,7 @@
       </section>
 
       <!-- MENU CATALOG STOCK MANAGER -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+      <section id="section-stock-inventory" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
           <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase">Menu Inventory Stock control</h4>
           <select id="inventory-category-select" class="bg-white border border-outline-variant/30 rounded-lg text-xs p-1 text-primary focus:border-secondary focus:ring-secondary" onchange="renderInventoryList()">
@@ -411,7 +432,7 @@
       </section>
 
       <!-- RECEIPT ARCHIVE ENCLAVE -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm mt-1">
+      <section id="section-receipt-archive" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm mt-1">
         <div class="flex justify-between items-center border-b border-outline-variant/20 pb-3">
           <div class="flex items-center gap-1.5">
             <span class="material-symbols-outlined text-[14px] text-secondary">receipt_long</span>
@@ -437,7 +458,7 @@
     <div class="lg:col-span-5 flex flex-col gap-6">
       
       <!-- KITCHEN MONITOR MODULE -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-5 shadow-sm min-h-[500px]">
+      <section id="section-kitchen-dispatch" class="glass-card p-5 rounded-xl flex flex-col gap-5 shadow-sm min-h-[500px]">
         
         <div class="flex flex-col gap-3 border-b border-outline-variant/20 pb-4">
           <div class="flex justify-between items-center">
@@ -469,7 +490,7 @@
       </section>
 
       <!-- GUEST FEEDBACK LOGS PANEL -->
-      <section class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
+      <section id="section-feedback-logs" class="glass-card p-5 rounded-xl flex flex-col gap-4 shadow-sm">
         <h4 class="font-label-caps text-[10px] text-secondary tracking-widest font-semibold uppercase border-b border-outline-variant/20 pb-3">Guest Reflection Feed</h4>
         <div class="flex flex-col gap-3.5 max-h-[250px] overflow-y-auto pr-1" id="feedback-logs-feed">
           <!-- Dynamically drawn guest feedbacks review cards -->
@@ -1041,11 +1062,51 @@
     }
 
     /**
+     * Mobile tab switcher (only applies on mobile layout width < 1024px via media query hidden rules)
+     */
+    function switchMobileTab(tabId, buttonEl) {
+      document.querySelectorAll(".mobile-tab-btn").forEach(btn => {
+        btn.className = "mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-white text-primary border border-outline-variant/20";
+      });
+      if (buttonEl) {
+        buttonEl.className = "mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-primary text-white shadow-sm";
+      } else {
+        const defaultBtn = document.querySelector(`.mobile-tab-btn[onclick*="'${tabId}'"]`);
+        if (defaultBtn) {
+          defaultBtn.className = "mobile-tab-btn flex-1 min-w-[75px] py-2 px-1 text-[8.5px] font-bold font-mono uppercase rounded transition-all text-center shrink-0 active:scale-95 bg-primary text-white shadow-sm";
+        }
+      }
+
+      const elementsMap = {
+        kds: ["section-kitchen-dispatch", "section-feedback-logs"],
+        tables: ["section-table-management"],
+        analytics: ["section-metrics-grid", "section-hourly-sales", "section-category-leaderboard", "section-session-analytics"],
+        ops: ["section-stock-inventory", "section-receipt-archive"]
+      };
+
+      Object.keys(elementsMap).forEach(key => {
+        const isCurrent = key === tabId;
+        elementsMap[key].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            if (isCurrent) {
+              el.classList.remove("mobile-hidden");
+            } else {
+              el.classList.add("mobile-hidden");
+            }
+          }
+        });
+      });
+    }
+    window.switchMobileTab = switchMobileTab;
+
+    /**
      * Dashboard initializer
      */
     async function initializeDashboard() {
       await syncLocalData();
       renderDashboard();
+      switchMobileTab('kds');
     }
 
     async function syncLocalData() {
