@@ -378,6 +378,9 @@ class CartService {
       this.clearTableSessionsLocally(targetTable);
     }
 
+    this._lastActiveSessionsSync = 0;
+    this._lastAllSessionsSync = 0;
+
     // If it is the current guest's table, reset their guest name and current session id in localStorage!
     if (targetTable === this.getTableNumber()) {
       localStorage.removeItem("gp_guest_name_t" + targetTable);
@@ -389,6 +392,8 @@ class CartService {
   }
 
   clearTableSessionsLocally(tableNum) {
+    this._lastActiveSessionsSync = 0;
+    this._lastAllSessionsSync = 0;
     const sessions = window.gpStorage.getTableSessions();
     const active = sessions.find(s => s.table_number === tableNum && s.status !== "closed");
     if (active) {
@@ -430,22 +435,45 @@ class CartService {
     return members.filter(m => m.session_id === sessionId);
   }
 
-  async getAllActiveSessions() {
-    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
-      try {
-        const { data, error } = await window.supabaseClient
-          .from("table_sessions")
-          .select("*, session_members(*)")
-          .neq("status", "closed");
-        if (error) throw error;
-        return data || [];
-      } catch (e) {
-        console.error("Supabase getAllActiveSessions error:", e);
-        return this.getAllActiveSessionsLocally();
-      }
-    } else {
-      return this.getAllActiveSessionsLocally();
+  async getAllActiveSessions(force = false) {
+    const now = Date.now();
+    if (!force && this._lastActiveSessionsSync && (now - this._lastActiveSessionsSync < 1500) && this._cachedActiveSessions) {
+      return this._cachedActiveSessions;
     }
+
+    if (this._activeSessionsPromise) {
+      return this._activeSessionsPromise;
+    }
+
+    this._activeSessionsPromise = (async () => {
+      try {
+        if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
+          try {
+            const { data, error } = await window.supabaseClient
+              .from("table_sessions")
+              .select("*, session_members(*)")
+              .neq("status", "closed");
+            if (error) throw error;
+            this._cachedActiveSessions = data || [];
+            this._lastActiveSessionsSync = Date.now();
+            return this._cachedActiveSessions;
+          } catch (e) {
+            console.error("Supabase getAllActiveSessions error:", e);
+            this._cachedActiveSessions = this.getAllActiveSessionsLocally();
+            this._lastActiveSessionsSync = Date.now();
+            return this._cachedActiveSessions;
+          }
+        } else {
+          this._cachedActiveSessions = this.getAllActiveSessionsLocally();
+          this._lastActiveSessionsSync = Date.now();
+          return this._cachedActiveSessions;
+        }
+      } finally {
+        this._activeSessionsPromise = null;
+      }
+    })();
+
+    return this._activeSessionsPromise;
   }
 
   getAllActiveSessionsLocally() {
@@ -457,21 +485,44 @@ class CartService {
     }));
   }
 
-  async getAllSessions() {
-    if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
-      try {
-        const { data, error } = await window.supabaseClient
-          .from("table_sessions")
-          .select("*, session_members(*)");
-        if (error) throw error;
-        return data || [];
-      } catch (e) {
-        console.error("Supabase getAllSessions error:", e);
-        return this.getAllSessionsLocally();
-      }
-    } else {
-      return this.getAllSessionsLocally();
+  async getAllSessions(force = false) {
+    const now = Date.now();
+    if (!force && this._lastAllSessionsSync && (now - this._lastAllSessionsSync < 1500) && this._cachedAllSessions) {
+      return this._cachedAllSessions;
     }
+
+    if (this._allSessionsPromise) {
+      return this._allSessionsPromise;
+    }
+
+    this._allSessionsPromise = (async () => {
+      try {
+        if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
+          try {
+            const { data, error } = await window.supabaseClient
+              .from("table_sessions")
+              .select("*, session_members(*)");
+            if (error) throw error;
+            this._cachedAllSessions = data || [];
+            this._lastAllSessionsSync = Date.now();
+            return this._cachedAllSessions;
+          } catch (e) {
+            console.error("Supabase getAllSessions error:", e);
+            this._cachedAllSessions = this.getAllSessionsLocally();
+            this._lastAllSessionsSync = Date.now();
+            return this._cachedAllSessions;
+          }
+        } else {
+          this._cachedAllSessions = this.getAllSessionsLocally();
+          this._lastAllSessionsSync = Date.now();
+          return this._cachedAllSessions;
+        }
+      } finally {
+        this._allSessionsPromise = null;
+      }
+    })();
+
+    return this._allSessionsPromise;
   }
 
   getAllSessionsLocally() {
