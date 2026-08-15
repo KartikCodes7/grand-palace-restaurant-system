@@ -224,7 +224,7 @@
 
   <!-- MOCK LOGIN PANEL OVERLAY -->
   <div id="login-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-surface p-8 rounded-2xl flex flex-col gap-6 border border-outline-variant/35 shadow-2xl relative">
+    <div class="w-full max-w-md max-h-[90vh] overflow-y-auto bg-surface p-8 rounded-2xl flex flex-col gap-6 border border-outline-variant/35 shadow-2xl relative">
       <div class="text-center flex flex-col gap-1.5">
         <p class="font-label-caps text-xs text-secondary tracking-widest uppercase font-semibold">PROPRIETOR ENCLAVE</p>
         <h2 class="font-display-lg-mobile text-2xl text-primary leading-none">The Grand Palace</h2>
@@ -802,8 +802,21 @@
       }
     }
 
-    async function syncReceiptsFromSupabase() {
-      if (window.supabaseEnabled && window.supabaseClient) {
+    let _lastReceiptsSync = 0;
+    let _receiptsSyncPromise = null;
+    async function syncReceiptsFromSupabase(force = false) {
+      if (!window.supabaseEnabled || !window.supabaseClient) return;
+
+      const now = Date.now();
+      if (!force && _lastReceiptsSync && (now - _lastReceiptsSync < 10000)) {
+        return;
+      }
+
+      if (_receiptsSyncPromise) {
+        return _receiptsSyncPromise;
+      }
+
+      _receiptsSyncPromise = (async () => {
         try {
           const { data, error } = await window.supabaseClient
             .from("orders")
@@ -853,10 +866,15 @@
           
           const mergedList = Array.from(mergedMap.values());
           window.gpStorage.saveReceipts(mergedList);
+          _lastReceiptsSync = Date.now();
         } catch (e) {
           console.error("Error syncing receipts from Supabase:", e);
+        } finally {
+          _receiptsSyncPromise = null;
         }
-      }
+      })();
+
+      return _receiptsSyncPromise;
     }
 
     // Network status UI indicators (Scope 1)
@@ -1415,7 +1433,7 @@
           <div class="flex items-center gap-2.5 min-w-0">
             ${medal}
             <div class="relative overflow-hidden rounded bg-surface-container border border-outline-variant/15 shrink-0 w-8 h-8">
-              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${dish.image}" alt="${dish.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${dish.image}" alt="${dish.name}" loading="lazy" decoding="async" width="64" height="64" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
             <span class="font-bold text-primary truncate min-w-0">${dish.name}</span>
           </div>
@@ -1446,7 +1464,7 @@
         row.innerHTML = `
           <div class="flex items-center gap-3 min-w-0">
             <div class="relative overflow-hidden rounded-lg w-10 h-10 bg-surface-container border border-outline-variant/20 shadow-sm shrink-0">
-              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" decoding="async" width="80" height="80" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
             <div class="min-w-0">
               <h5 class="font-bold text-primary truncate leading-tight">${item.name}</h5>

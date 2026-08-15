@@ -5,59 +5,82 @@
 class OrderService {
   constructor() {
     this.ordersList = [];
+    this._lastSync = 0;
+    this._syncPromise = null;
   }
 
   /**
-   * Syncs internal cache from Supabase or fallback storage
+   * Syncs internal cache from Supabase or fallback storage with request deduplication
    */
-  async syncOrders() {
-    if (window.supabaseEnabled) {
-      try {
-        const { data, error } = await window.supabaseClient
-          .from("orders")
-          .select("*, order_items(*)")
-          .order("created_at", { ascending: false });
-
-        if (error) throw error;
-
-        // Map database naming schema back to client structures
-        this.ordersList = data.map((order) => {
-          // Re-create history completed tags based on status
-          const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served", "Settled"];
-          const currentIdx = statusOrder.indexOf(order.status);
-          const history = statusOrder.map((status, index) => ({
-            status: status,
-            completed: index <= currentIdx
-          }));
-
-          return {
-            id: order.id,
-            tableNumber: order.table_number,
-            sessionId: order.session_id,
-            status: order.status,
-            subtotal: Number(order.subtotal),
-            tax: Number(order.tax),
-            serviceCharge: Number(order.service_charge),
-            total: Number(order.total),
-            eta: order.eta || "20 mins",
-            timestamp: order.timestamp,
-            date: new Date(order.created_at).toLocaleDateString(),
-            createdAt: order.created_at,
-            items: order.order_items.map(i => ({
-              name: i.name,
-              quantity: i.quantity,
-              price: Number(i.price)
-            })),
-            history: history
-          };
-        });
-      } catch (e) {
-        console.error("Supabase orders sync error, using fallback storage:", e);
-        this.ordersList = window.gpStorage.getOrders();
-      }
-    } else {
-      this.ordersList = window.gpStorage.getOrders();
+  async syncOrders(force = false) {
+    const now = Date.now();
+    if (!force && this._lastSync && (now - this._lastSync < 1500) && this.ordersList && this.ordersList.length > 0) {
+      return this.ordersList;
     }
+
+    if (this._syncPromise) {
+      return this._syncPromise;
+    }
+
+    this._syncPromise = (async () => {
+      try {
+        if (window.supabaseEnabled) {
+          try {
+            const { data, error } = await window.supabaseClient
+              .from("orders")
+              .select("*, order_items(*)")
+              .order("created_at", { ascending: false });
+
+            if (error) throw error;
+
+            // Map database naming schema back to client structures
+            this.ordersList = data.map((order) => {
+              // Re-create history completed tags based on status
+              const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served", "Settled"];
+              const currentIdx = statusOrder.indexOf(order.status);
+              const history = statusOrder.map((status, index) => ({
+                status: status,
+                completed: index <= currentIdx
+              }));
+
+              return {
+                id: order.id,
+                tableNumber: order.table_number,
+                sessionId: order.session_id,
+                status: order.status,
+                subtotal: Number(order.subtotal),
+                tax: Number(order.tax),
+                serviceCharge: Number(order.service_charge),
+                total: Number(order.total),
+                eta: order.eta || "20 mins",
+                timestamp: order.timestamp,
+                date: new Date(order.created_at).toLocaleDateString(),
+                createdAt: order.created_at,
+                items: order.order_items.map(i => ({
+                  name: i.name,
+                  quantity: i.quantity,
+                  price: Number(i.price)
+                })),
+                history: history
+              };
+            });
+            this._lastSync = Date.now();
+          } catch (e) {
+            console.error("Supabase orders sync error, using fallback storage:", e);
+            this.ordersList = window.gpStorage.getOrders();
+            this._lastSync = Date.now();
+          }
+        } else {
+          this.ordersList = window.gpStorage.getOrders();
+          this._lastSync = Date.now();
+        }
+        return this.ordersList;
+      } finally {
+        this._syncPromise = null;
+      }
+    })();
+
+    return this._syncPromise;
   }
 
   async getActiveOrders(tableNumber = "5") {
@@ -155,7 +178,7 @@ class OrderService {
         if (itemsErr) throw itemsErr;
 
         // Sync local cache
-        await this.syncOrders();
+        await this.syncOrders(true);
         return this.ordersList.find(o => o.id === orderId);
       } catch (e) {
         console.error("Supabase order submit error, placing locally:", e);
@@ -249,7 +272,7 @@ class OrderService {
    * Manual timeline progress status updates by the proprietor
    */
   async updateOrderStatus(orderId, newStatus) {
-    await this.syncOrders();
+    await this.syncOrders(true);
     const order = this.ordersList.find(o => o.id === orderId);
     
     if (order) {
@@ -276,7 +299,7 @@ class OrderService {
           .eq("id", orderId);
           
         if (error) throw error;
-        await this.syncOrders();
+        await this.syncOrders(true);
         return this.ordersList.find(o => o.id === orderId);
       } catch (e) {
         console.error("Supabase order status update error, saving locally:", e);

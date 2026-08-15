@@ -5,6 +5,8 @@
 class MenuService {
   constructor() {
     this.menuCatalog = [];
+    this._lastSync = 0;
+    this._syncPromise = null;
   }
 
   /**
@@ -25,66 +27,87 @@ class MenuService {
   }
 
   /**
-   * Syncs internal catalog cache from database or local fallback
+   * Syncs internal catalog cache from database or local fallback with request deduplication
    */
-  async syncCatalog() {
-    if (window.supabaseEnabled) {
-      try {
-        const { data, error } = await window.supabaseClient
-          .from("menu_items")
-          .select("*")
-          .order("id");
-          
-        if (error) throw error;
-        
-        // Map database snake_case fields to client-side camelCase properties
-        this.menuCatalog = data.map(item => {
-          const category = item.category || "Starters";
-          return {
-            id: item.id,
-            name: item.name,
-            description: item.description,
-            price: Number(item.price),
-            category: category,
-            image: this.ensurePremiumImage(item.image, category),
-            popular: item.popular,
-            special: item.special,
-            inStock: item.in_stock !== false
-          };
-        });
-      } catch (e) {
-        console.error("Supabase menu sync error, utilizing local storage:", e);
-        this.menuCatalog = (window.gpStorage.getMenu() || []).map(item => {
-          const category = item.category || "Starters";
-          return {
-            ...item,
-            image: this.ensurePremiumImage(item.image, category)
-          };
-        });
-      }
-    } else {
-      this.menuCatalog = (window.gpStorage.getMenu() || []).map(item => {
-        const category = item.category || "Starters";
-        return {
-          ...item,
-          image: this.ensurePremiumImage(item.image, category)
-        };
-      });
+  async syncCatalog(force = false) {
+    const now = Date.now();
+    if (!force && this._lastSync && (now - this._lastSync < 2000) && this.menuCatalog && this.menuCatalog.length > 0) {
+      return this.menuCatalog;
     }
+
+    if (this._syncPromise) {
+      return this._syncPromise;
+    }
+
+    this._syncPromise = (async () => {
+      try {
+        if (window.supabaseEnabled) {
+          try {
+            const { data, error } = await window.supabaseClient
+              .from("menu_items")
+              .select("*")
+              .order("id");
+              
+            if (error) throw error;
+            
+            // Map database snake_case fields to client-side camelCase properties
+            this.menuCatalog = data.map(item => {
+              const category = item.category || "Starters";
+              return {
+                id: item.id,
+                name: item.name,
+                description: item.description,
+                price: Number(item.price),
+                category: category,
+                image: this.ensurePremiumImage(item.image, category),
+                popular: item.popular,
+                special: item.special,
+                inStock: item.in_stock !== false
+              };
+            });
+            this._lastSync = Date.now();
+          } catch (e) {
+            console.error("Supabase menu sync error, utilizing local storage:", e);
+            this.menuCatalog = (window.gpStorage.getMenu() || []).map(item => {
+              const category = item.category || "Starters";
+              return {
+                ...item,
+                image: this.ensurePremiumImage(item.image, category)
+              };
+            });
+            this._lastSync = Date.now();
+          }
+        } else {
+          this.menuCatalog = (window.gpStorage.getMenu() || []).map(item => {
+            const category = item.category || "Starters";
+            return {
+              ...item,
+              image: this.ensurePremiumImage(item.image, category)
+            };
+          });
+          this._lastSync = Date.now();
+        }
+        return this.menuCatalog;
+      } finally {
+        this._syncPromise = null;
+      }
+    })();
+
+    return this._syncPromise;
   }
 
-  async getMenu() {
-    await this.syncCatalog();
+  async getMenu(force = false) {
+    await this.syncCatalog(force);
     return this.menuCatalog;
   }
 
-  async getPopularDishes() {
-    await this.syncCatalog();
+  async getPopularDishes(force = false) {
+    await this.syncCatalog(force);
     return this.menuCatalog.filter(item => item.popular && item.inStock);
   }
 
-  async getTodaysSpecial() {
-    await this.syncCatalog();
+  async getTodaysSpecial(force = false) {
+    await this.syncCatalog(force);
     return this.menuCatalog.find(item => item.special && item.inStock) || this.menuCatalog[0];
   }
 
@@ -92,7 +115,7 @@ class MenuService {
    * Owner stock control updates
    */
   async toggleAvailability(itemId) {
-    await this.syncCatalog();
+    await this.syncCatalog(true);
     const item = this.menuCatalog.find(m => m.id === itemId);
     if (!item) return;
 
@@ -116,11 +139,11 @@ class MenuService {
         this.menuCatalog.map(m => m.id === itemId ? { ...m, inStock: nextState } : m)
       );
     }
-    return this.getMenu();
+    return this.getMenu(true);
   }
 
   async togglePopular(itemId) {
-    await this.syncCatalog();
+    await this.syncCatalog(true);
     const item = this.menuCatalog.find(m => m.id === itemId);
     if (!item) return;
 
@@ -144,11 +167,11 @@ class MenuService {
         this.menuCatalog.map(m => m.id === itemId ? { ...m, popular: nextState } : m)
       );
     }
-    return this.getMenu();
+    return this.getMenu(true);
   }
 
   async setTodaysSpecial(itemId) {
-    await this.syncCatalog();
+    await this.syncCatalog(true);
     
     if (window.supabaseEnabled) {
       try {
@@ -175,7 +198,7 @@ class MenuService {
         this.menuCatalog.map(m => m.id === itemId ? { ...m, special: true } : { ...m, special: false })
       );
     }
-    return this.getMenu();
+    return this.getMenu(true);
   }
 }
 

@@ -293,7 +293,7 @@
           onclick="navigateToSpecialItem()">
           <img
             class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-            id="special-dish-image" src="" alt="Special Dish" />
+            id="special-dish-image" src="" alt="Special Dish" decoding="async" />
           <div class="absolute inset-0 bg-gradient-to-r from-black/85 via-black/45 to-transparent"></div>
           <div class="relative z-10 p-6 max-w-sm text-white flex flex-col gap-3">
             <span
@@ -556,7 +556,7 @@
     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300"
     onclick="closeCheckoutModal()">
     <div
-      class="w-full max-w-sm bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 sm:gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
+      class="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 sm:gap-5 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
       onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
         <h4 class="font-headline-md text-base text-primary">Palatial Checkout</h4>
@@ -614,7 +614,7 @@
     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-300"
     onclick="closeFeedbackModal()">
     <div
-      class="w-full max-w-sm bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
+      class="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-surface p-4 sm:p-6 rounded-2xl flex flex-col gap-4 border border-outline-variant/30 transform scale-90 transition-transform duration-300"
       onclick="event.stopPropagation()">
       <div class="flex justify-between items-center border-b border-outline-variant/20 pb-2">
         <h4 class="font-headline-md text-base text-primary">Dining Reflections</h4>
@@ -688,7 +688,7 @@
 
   <!-- GUEST NAME MODAL ENTRY OVERLAY -->
   <div id="guest-name-overlay" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-surface p-5 sm:p-8 rounded-2xl flex flex-col gap-4 sm:gap-6 border border-outline-variant/35 shadow-2xl relative animate-float">
+    <div class="w-full max-w-sm max-h-[90vh] overflow-y-auto bg-surface p-5 sm:p-8 rounded-2xl flex flex-col gap-4 sm:gap-6 border border-outline-variant/35 shadow-2xl relative animate-float">
       <div class="text-center flex flex-col gap-1.5">
         <p class="font-label-caps text-xs text-secondary tracking-widest uppercase font-semibold">GASTRONOMY GROUP DINING</p>
         <h2 class="font-display-lg-mobile text-2xl text-primary leading-none">Welcome to The Grand Palace</h2>
@@ -792,12 +792,91 @@
     }
 
     let sessionMembersSubscription = null;
+    let guestRealtimeChannels = [];
+
+    function subscribeToGuestRealtimeChannels() {
+      if (!window.supabaseEnabled || !window.supabaseClient) return;
+
+      // Cleanly teardown previous subscriptions to avoid leaks
+      guestRealtimeChannels.forEach(c => {
+        try { window.supabaseClient.removeChannel(c); } catch (e) {}
+      });
+      guestRealtimeChannels = [];
+
+      // 1. Table sessions (session closure detection)
+      if (window.supabaseDbUpgraded) {
+        const tableSessChan = window.supabaseClient
+          .channel("realtime:table_sessions")
+          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Table sessions update received!", payload);
+            if (payload.eventType === "UPDATE" && payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
+              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
+              setTimeout(() => {
+                window.cartService.resetLocalSessionCart();
+                window.location.reload();
+              }, 3000);
+            }
+            await syncTableGuests();
+          })
+          .subscribe();
+        guestRealtimeChannels.push(tableSessChan);
+
+        // 2. Shared cart updates
+        const sharedCartChan = window.supabaseClient
+          .channel("realtime:shared_carts")
+          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
+            console.log("🔥 Realtime: Shared Cart update received!", payload);
+            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
+            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
+              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
+              const name = item ? item.name : "an item";
+              showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
+            }
+            await window.cartService.syncSharedCart();
+            renderUI();
+          })
+          .subscribe();
+        guestRealtimeChannels.push(sharedCartChan);
+      }
+
+      // 3. Menu items inventory updates
+      const menuChan = window.supabaseClient
+        .channel("realtime:menu_items")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
+          console.log("🔥 Realtime: Menu items updated!");
+          await refreshData();
+          renderUI();
+        })
+        .subscribe();
+      guestRealtimeChannels.push(menuChan);
+
+      // 4. Kitchen orders updates
+      const ordersChan = window.supabaseClient
+        .channel("realtime:orders")
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
+          console.log("🔥 Realtime: Order status changed!");
+          await refreshData();
+          renderUI();
+
+          if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
+            if (window.promptFeedbackOverlay) {
+              window.promptFeedbackOverlay(payload.new.id);
+            }
+          }
+        })
+        .subscribe();
+      guestRealtimeChannels.push(ordersChan);
+    }
+
     function setupSessionMembersListener() {
       if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
         const currentSid = window.cartService.getSessionId();
         if (currentSid) {
           if (sessionMembersSubscription) {
-            window.supabaseClient.removeChannel(sessionMembersSubscription);
+            try { window.supabaseClient.removeChannel(sessionMembersSubscription); } catch (e) {}
           }
           sessionMembersSubscription = window.supabaseClient
             .channel("realtime:session_members_active")
@@ -816,7 +895,11 @@
     document.addEventListener("DOMContentLoaded", async () => {
       // Define network status for guest portal (used by cartService)
       window.gpNetworkOnline = navigator.onLine;
-      window.addEventListener('online', () => { window.gpNetworkOnline = true; });
+      window.addEventListener('online', () => { 
+        window.gpNetworkOnline = true; 
+        subscribeToGuestRealtimeChannels();
+        setupSessionMembersListener();
+      });
       window.addEventListener('offline', () => { window.gpNetworkOnline = false; });
 
       // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
@@ -857,79 +940,11 @@
       }
 
       // 7. Connect live Supabase Realtime socket sync channels
-      if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
-        // Subscribe to dynamic table session updates
-        window.supabaseClient
-          .channel("realtime:table_sessions")
-          .on("postgres_changes", { event: "*", schema: "public", table: "table_sessions", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-            console.log("🔥 Realtime: Table sessions update received!", payload);
-            if (payload.eventType === "UPDATE" && payload.new.status === "closed" && payload.new.session_id === window.cartService.getSessionId()) {
-              showToast("SESSION CLOSED", "Your table session has been cleared by the proprietor. Thank you for dining with us!", "restaurant");
-              setTimeout(() => {
-                window.cartService.resetLocalSessionCart();
-                window.location.reload();
-              }, 3000);
-            }
-            await syncTableGuests();
-          })
-          .subscribe();
-
-        // Initial setup for session members listener
-        setupSessionMembersListener();
-
-        // Subscribe to dynamic group shared cart actions
-        window.supabaseClient
-          .channel("realtime:shared_carts")
-          .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts", filter: `table_number=eq.${App.tableNumber}` }, async (payload) => {
-            console.log("🔥 Realtime: Shared Cart update received!", payload);
-            
-            // Pop up botanical alerts when other table guests execute additions
-            if (payload.eventType === "INSERT" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-              const name = item ? item.name : "an item";
-              showToast("CART ADDITION", `${payload.new.guest_name} added ${name} to your table basket!`, "shopping_cart");
-            } else if (payload.eventType === "UPDATE" && payload.new.guest_name !== window.cartService.getGuestName() && payload.new.session_id === window.cartService.getSessionId()) {
-              const item = App.menu.find(m => m.id === payload.new.menu_item_id);
-              const name = item ? item.name : "an item";
-              showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
-            }
-            
-            await window.cartService.syncSharedCart();
-            renderUI();
-          })
-          .subscribe();
-      }
-
-      if (window.supabaseEnabled && window.supabaseClient) {
-        // Subscribe to dynamic stock/availability changes in menu
-        window.supabaseClient
-          .channel("realtime:menu_items")
-          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
-            console.log("🔥 Realtime: Menu items updated!");
-            await refreshData();
-            renderUI();
-          })
-          .subscribe();
-
-        // Subscribe to dynamic kitchen dispatch updates in orders timeline
-        window.supabaseClient
-          .channel("realtime:orders")
-          .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
-            console.log("🔥 Realtime: Order status changed!");
-            await refreshData();
-            renderUI();
-
-            // Auto prompt feedback modal overlay upon Served
-            if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
-              if (window.promptFeedbackOverlay) {
-                window.promptFeedbackOverlay(payload.new.id);
-              }
-            }
-          })
-          .subscribe();
-      }
+      subscribeToGuestRealtimeChannels();
+      setupSessionMembersListener();
 
       // 8. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
+      if (window._guestPollingId) clearInterval(window._guestPollingId);
       window._guestPollingId = setInterval(async () => {
         if (document.hidden) return; // Skip background processing to save CPU and battery
         if (window.supabaseEnabled) {
@@ -996,9 +1011,14 @@
       }
     }
 
+    let _lastSyncedGuestsJson = "";
     async function syncTableGuests() {
       try {
         const guests = await window.cartService.getTableSessions();
+        const currentJson = JSON.stringify(guests);
+        if (currentJson === _lastSyncedGuestsJson) return; // Skip redundant DOM operations!
+        _lastSyncedGuestsJson = currentJson;
+
         const tray = document.getElementById("table-guests-tray");
         if (!tray) return;
 
@@ -1141,7 +1161,7 @@
 
         itemCard.innerHTML = `
           <div class="relative overflow-hidden h-28 sm:h-44 w-full bg-surface-container rounded-t-xl">
-            <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+            <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" decoding="async" width="400" height="300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
           </div>
           <div class="p-3.5 flex flex-col gap-1">
             <h4 class="font-bold text-xs text-primary leading-tight truncate">${item.name}</h4>
@@ -1180,7 +1200,7 @@
             </span>
           </div>
           <div class="relative overflow-hidden h-32 w-full bg-surface-container rounded-t-xl">
-            <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+            <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" decoding="async" width="400" height="300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
           </div>
           <div class="p-3.5 flex flex-col justify-between flex-grow gap-2">
             <div>
@@ -1294,7 +1314,7 @@
                   ${pairedItems.map(pi => `
                     <div class="flex items-center gap-2 bg-surface-container-low/55 border border-outline-variant/20 px-2.5 py-1 rounded-lg shrink-0 hover:border-secondary transition-colors cursor-pointer" onclick="window.cartService.addToCart('${pi.id}'); showToast('ADDED TO BASKET', '${pi.name} added!', 'restaurant')">
                       <div class="relative overflow-hidden rounded w-7 h-7 bg-surface-container border border-outline-variant/15 shrink-0">
-                        <img class="w-full h-full object-cover" src="${pi.image}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+                        <img class="w-full h-full object-cover" src="${pi.image}" loading="lazy" decoding="async" width="80" height="80" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
                       </div>
                       <div class="flex flex-col">
                         <span class="text-[9px] font-bold text-primary max-w-[85px] truncate leading-tight">${pi.name}</span>
@@ -1312,7 +1332,7 @@
         card.innerHTML = `
           <div class="flex gap-3 sm:gap-4">
             <div class="relative overflow-hidden rounded-xl shrink-0 w-20 h-20 sm:w-28 sm:h-28 bg-surface-container border border-outline-variant/25 shadow-sm">
-              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+              <img class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src="${item.image}" alt="${item.name}" loading="lazy" decoding="async" width="400" height="300" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
             <div class="flex flex-col justify-between flex-grow min-w-0">
               <div>
@@ -1370,7 +1390,7 @@
         itemRow.innerHTML = `
           <div class="flex items-center gap-3">
             <div class="relative overflow-hidden rounded-xl w-16 h-16 bg-surface-container border border-outline-variant/20 shadow-sm shrink-0">
-              <img class="w-full h-full object-cover" src="${ci.item.image}" alt="${ci.item.name}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+              <img class="w-full h-full object-cover" src="${ci.item.image}" alt="${ci.item.name}" loading="lazy" decoding="async" width="160" height="160" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
             <div>
               <h4 class="font-bold text-primary">${ci.item.name}</h4>
@@ -1483,7 +1503,7 @@
         comboDiv.innerHTML = `
           <div class="flex items-center gap-3">
             <div class="relative overflow-hidden rounded-lg w-14 h-14 bg-surface-container border border-secondary/20 shadow shrink-0">
-              <img class="w-full h-full object-cover" src="${targetItem.image}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+              <img class="w-full h-full object-cover" src="${targetItem.image}" loading="lazy" decoding="async" width="120" height="120" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
             </div>
             <div>
               <span class="text-[8px] bg-secondary text-white px-2 py-0.5 rounded font-bold font-mono tracking-widest uppercase">${combo.badge}</span>
@@ -1520,7 +1540,7 @@
             ${desserts.map(d => `
               <div class="glass-card p-3 rounded-xl border border-outline-variant/20 flex gap-3 w-56 shrink-0 active:scale-[0.99] transition-transform cursor-pointer" onclick="window.cartService.addToCart('${d.id}'); showToast('SWEET ADDED', '${d.name} added!', 'restaurant')">
                 <div class="relative overflow-hidden rounded-lg w-12 h-12 bg-surface-container border border-outline-variant/15 shadow shrink-0">
-                  <img class="w-full h-full object-cover" src="${d.image}" loading="lazy" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
+                  <img class="w-full h-full object-cover" src="${d.image}" loading="lazy" decoding="async" width="100" height="100" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80';"/>
                 </div>
                 <div class="flex flex-col justify-between flex-grow min-w-0">
                   <div>
