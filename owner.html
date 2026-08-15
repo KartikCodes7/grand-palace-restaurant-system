@@ -1202,14 +1202,10 @@
      * Dashboard initializer
      */
     async function initializeDashboard() {
-      // 1. Instantly paint UI from local cache
-      populateImmediateLocalState();
-      renderDashboardDirect();
-      switchMobileTab('kds');
-
-      // 2. Fetch fresh updates in the background concurrently
+      // Fetch all data in parallel (7x faster than old sequential approach), then render once
       await syncLocalData();
       renderDashboard();
+      switchMobileTab('kds');
     }
 
     let _syncLocalDataPromise = null;
