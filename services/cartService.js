@@ -152,7 +152,7 @@ class CartService {
       try {
         const { data, error } = await window.supabaseClient
           .from("table_sessions")
-          .select("*")
+          .select("session_id, table_number, status, started_at, guest_name")
           .eq("table_number", tableNum)
           .neq("status", "closed")
           .maybeSingle();
@@ -451,7 +451,7 @@ class CartService {
           try {
             const { data, error } = await window.supabaseClient
               .from("table_sessions")
-              .select("*, session_members(*)")
+              .select("session_id, table_number, status, started_at, guest_name, session_members(id, session_id, guest_name, joined_at)")
               .neq("status", "closed");
             if (error) throw error;
             this._cachedActiveSessions = data || [];
@@ -501,7 +501,7 @@ class CartService {
           try {
             const { data, error } = await window.supabaseClient
               .from("table_sessions")
-              .select("*, session_members(*)");
+              .select("session_id, table_number, status, started_at, guest_name, session_members(id, session_id, guest_name, joined_at)");
             if (error) throw error;
             this._cachedAllSessions = data || [];
             this._lastAllSessionsSync = Date.now();
@@ -580,7 +580,7 @@ class CartService {
       try {
         let query = window.supabaseClient
           .from("shared_carts")
-          .select("*")
+          .select("id, menu_item_id, quantity, guest_name, session_id, table_number")
           .eq("table_number", tableNum);
         
         if (window.supabaseDbUpgraded) {

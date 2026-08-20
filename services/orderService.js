@@ -28,7 +28,7 @@ class OrderService {
           try {
             const { data, error } = await window.supabaseClient
               .from("orders")
-              .select("*, order_items(*)")
+              .select("id, table_number, session_id, status, subtotal, tax, service_charge, total, eta, timestamp, created_at, order_items(name, quantity, price)")
               .order("created_at", { ascending: false });
 
             if (error) throw error;
@@ -81,6 +81,54 @@ class OrderService {
     })();
 
     return this._syncPromise;
+  }
+
+  async syncActiveOrdersForTable(tableNumber) {
+    if (!window.supabaseEnabled || !window.supabaseClient) {
+      return this.getActiveOrders(tableNumber);
+    }
+    try {
+      const { data, error } = await window.supabaseClient
+        .from("orders")
+        .select("id, table_number, session_id, status, subtotal, tax, service_charge, total, eta, timestamp, created_at, order_items(name, quantity, price)")
+        .eq("table_number", tableNumber)
+        .not("status", "in", '("Served","Settled")')
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served", "Settled"];
+      return data.map((order) => {
+        const currentIdx = statusOrder.indexOf(order.status);
+        const history = statusOrder.map((status, index) => ({
+          status: status,
+          completed: index <= currentIdx
+        }));
+        return {
+          id: order.id,
+          tableNumber: order.table_number,
+          sessionId: order.session_id,
+          status: order.status,
+          subtotal: Number(order.subtotal),
+          tax: Number(order.tax),
+          serviceCharge: Number(order.service_charge),
+          total: Number(order.total),
+          eta: order.eta || "20 mins",
+          timestamp: order.timestamp,
+          date: new Date(order.created_at).toLocaleDateString(),
+          createdAt: order.created_at,
+          items: order.order_items.map(i => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: Number(i.price)
+          })),
+          history: history
+        };
+      });
+    } catch (e) {
+      console.error("Supabase active orders table sync error:", e);
+      return this.getActiveOrders(tableNumber);
+    }
   }
 
   async getActiveOrders(tableNumber = "5") {

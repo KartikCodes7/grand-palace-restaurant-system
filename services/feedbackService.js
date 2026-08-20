@@ -85,7 +85,8 @@ class FeedbackService {
             const { data, error } = await window.supabaseClient
               .from("feedback")
               .select("*")
-              .order("created_at", { ascending: false });
+              .order("created_at", { ascending: false })
+              .limit(100);
               
             if (error) throw error;
             

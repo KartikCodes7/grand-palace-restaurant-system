@@ -198,6 +198,18 @@
         width: 100% !important;
       }
     }
+
+    /* Mobile performance: reduce expensive compositor blur */
+    @media (max-width: 768px) {
+      .glass-card {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .glass-nav {
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+    }
   </style>
 </head>
 
@@ -836,7 +848,9 @@
               showToast("CART UPDATE", `${payload.new.guest_name} updated quantity of ${name}!`, "shopping_cart");
             }
             await window.cartService.syncSharedCart();
-            renderUI();
+            renderCartBadge();
+            if (App.activeTab === 'cart') { renderCartBasket().catch(e => console.error('Cart render error:', e)); }
+            if (App.activeTab === 'menu') { renderMenuCatalog(); }
           })
           .subscribe();
         guestRealtimeChannels.push(sharedCartChan);
@@ -847,8 +861,9 @@
         .channel("realtime:menu_items")
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
           console.log("🔥 Realtime: Menu items updated!");
-          await refreshData();
-          renderUI();
+          await syncMenuData();
+          if (App.activeTab === 'home') { renderHomeSpecials(); }
+          if (App.activeTab === 'menu') { renderMenuCatalog(); }
         })
         .subscribe();
       guestRealtimeChannels.push(menuChan);
@@ -858,8 +873,10 @@
         .channel("realtime:orders")
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders" }, async (payload) => {
           console.log("🔥 Realtime: Order status changed!");
-          await refreshData();
-          renderUI();
+          await syncActiveOrders();
+          await syncOrderHistory();
+          if (App.activeTab === 'orders') { renderOrdersMonitor(); }
+          renderCartBadge();
 
           if (payload.new && payload.new.status === "Served" && payload.new.table_number === App.tableNumber) {
             if (window.promptFeedbackOverlay) {
@@ -892,6 +909,8 @@
       }
     }
 
+    let _realtimeConnected = false;
+
     document.addEventListener("DOMContentLoaded", async () => {
       // Define network status for guest portal (used by cartService)
       window.gpNetworkOnline = navigator.onLine;
@@ -899,8 +918,9 @@
         window.gpNetworkOnline = true; 
         subscribeToGuestRealtimeChannels();
         setupSessionMembersListener();
+        _realtimeConnected = guestRealtimeChannels.length > 0;
       });
-      window.addEventListener('offline', () => { window.gpNetworkOnline = false; });
+      window.addEventListener('offline', () => { window.gpNetworkOnline = false; _realtimeConnected = false; });
 
       // 1. Resolve Table Number from QR URL parameters (?table=X or /table/X)
       loadTableSession();
@@ -926,58 +946,51 @@
       // 6. Connect live storage sync observers
       if (window.gpEvents) {
         window.gpEvents.onOrdersUpdated(async () => {
-          await refreshData();
-          renderUI();
+          await syncActiveOrders();
+          await syncOrderHistory();
+          if (App.activeTab === 'orders') { renderOrdersMonitor(); }
+          renderCartBadge();
         });
         window.gpEvents.onMenuUpdated(async () => {
-          await refreshData();
-          renderUI();
+          await syncMenuData();
+          if (App.activeTab === 'home') { renderHomeSpecials(); }
+          if (App.activeTab === 'menu') { renderMenuCatalog(); }
         });
-        window.gpEvents.onFeedbacksUpdated(async () => {
-          await refreshData();
-          renderUI();
+        window.gpEvents.onFeedbacksUpdated(() => {
+          // Feedback is submit-only on customer portal; no render needed
         });
       }
 
       // 7. Connect live Supabase Realtime socket sync channels
       subscribeToGuestRealtimeChannels();
       setupSessionMembersListener();
+      _realtimeConnected = guestRealtimeChannels.length > 0;
 
-      // 8. Polling Fallback (syncs every 5 seconds in case Supabase Realtime replication is off)
+      // 8. Smart Heartbeat Fallback (only active when Realtime is disconnected)
       if (window._guestPollingId) clearInterval(window._guestPollingId);
       window._guestPollingId = setInterval(async () => {
-        if (document.hidden) return; // Skip background processing to save CPU and battery
+        if (document.hidden) return;
+        if (_realtimeConnected) return; // Realtime handles updates; skip polling
         if (window.supabaseEnabled) {
-          const activeBefore = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-
-          await refreshData();
-          await syncTableGuests();
-
-          const activeAfter = JSON.stringify(App.activeOrders.map(o => ({ id: o.id, status: o.status, eta: o.eta })));
-          if (activeBefore !== activeAfter) {
-            renderUI();
-
-            // If any active order transitioned to "Served", trigger the feedback overlay
-            App.activeOrders.forEach(o => {
-              if (o.status === "Served") {
-                if (window.promptFeedbackOverlay) {
+          try {
+            const prevStatuses = App.activeOrders.map(o => o.id + ':' + o.status).join(',');
+            await syncActiveOrders();
+            await syncTableGuests();
+            const newStatuses = App.activeOrders.map(o => o.id + ':' + o.status).join(',');
+            if (prevStatuses !== newStatuses) {
+              if (App.activeTab === 'orders') renderOrdersMonitor();
+              renderCartBadge();
+              App.activeOrders.forEach(o => {
+                if (o.status === 'Served' && window.promptFeedbackOverlay) {
                   window.promptFeedbackOverlay(o.id);
                 }
-              }
-            });
-            // Also check past orders list for newly served bills
-            App.pastOrders.forEach(o => {
-              const parsedBefore = JSON.parse(activeBefore);
-              const wasActive = parsedBefore.find(x => x.id === o.id);
-              if (wasActive) {
-                if (window.promptFeedbackOverlay) {
-                  window.promptFeedbackOverlay(o.id);
-                }
-              }
-            });
+              });
+            }
+          } catch (err) {
+            console.error('Heartbeat sync error:', err);
           }
         }
-      }, 5000);
+      }, 20000);
     });
 
     /**
@@ -1008,6 +1021,32 @@
         App.pastOrders = await window.orderService.getOrderHistory(App.tableNumber);
       } catch (err) {
         console.error("Gastronomy sync error:", err);
+      }
+    }
+
+    async function syncMenuData() {
+      try {
+        App.menu = await window.menuService.getMenu();
+        App.popularDishes = await window.menuService.getPopularDishes();
+        App.todaysSpecial = await window.menuService.getTodaysSpecial();
+      } catch (err) {
+        console.error("Menu sync error:", err);
+      }
+    }
+
+    async function syncActiveOrders() {
+      try {
+        App.activeOrders = await window.orderService.getActiveOrders(App.tableNumber);
+      } catch (err) {
+        console.error("Active orders sync error:", err);
+      }
+    }
+
+    async function syncOrderHistory() {
+      try {
+        App.pastOrders = await window.orderService.getOrderHistory(App.tableNumber);
+      } catch (err) {
+        console.error("Order history sync error:", err);
       }
     }
 
@@ -1086,6 +1125,17 @@
 
       window.scrollTo({ top: 0, behavior: "smooth" });
       renderUI();
+    }
+
+    function renderCartBadge() {
+      const cartCount = window.cartService.getTotalCount();
+      const badge = document.getElementById("cart-badge-nav");
+      if (cartCount > 0) {
+        badge.textContent = cartCount;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
     }
 
     let renderUIFrameId = null;
@@ -1243,9 +1293,13 @@
       renderMenuCatalog();
     }
 
+    let _menuSearchTimeout = null;
     function filterMenuItems() {
       menuKeyword = document.getElementById("menu-search-input").value.toLowerCase();
-      renderMenuCatalog();
+      if (_menuSearchTimeout) clearTimeout(_menuSearchTimeout);
+      _menuSearchTimeout = setTimeout(() => {
+        renderMenuCatalog();
+      }, 200);
     }
 
     function renderMenuCatalog() {

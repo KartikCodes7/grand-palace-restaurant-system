@@ -31,7 +31,7 @@ class MenuService {
    */
   async syncCatalog(force = false) {
     const now = Date.now();
-    if (!force && this._lastSync && (now - this._lastSync < 2000) && this.menuCatalog && this.menuCatalog.length > 0) {
+    if (!force && this._lastSync && (now - this._lastSync < 30000) && this.menuCatalog && this.menuCatalog.length > 0) {
       return this.menuCatalog;
     }
 
@@ -45,6 +45,8 @@ class MenuService {
           try {
             const { data, error } = await window.supabaseClient
               .from("menu_items")
+              // Using select(*) because the column naming is uncertain (snake_case vs camelCase) 
+              // and the menu table is small (~30 rows).
               .select("*")
               .order("id");
               

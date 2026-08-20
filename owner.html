@@ -208,6 +208,14 @@
         display: inline !important;
       }
     }
+
+    /* Mobile performance: reduce expensive compositor blur */
+    @media (max-width: 768px) {
+      .glass-card {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+    }
   </style>
 </head>
 <body class="text-on-surface font-body-md overflow-x-hidden min-h-screen">
@@ -919,7 +927,7 @@
       }, 150); // 150ms coalesce window to capture multiple simultaneous updates (e.g. order items inserts)
     }
 
-    // Consolidated Realtime Channels with Memory Leak Protection (Scope 6)
+    let _ownerRealtimeConnected = false;
     let ownerRealtimeChannels = [];
     function subscribeToOwnerRealtimeChannels() {
       if (!window.supabaseEnabled || !window.supabaseClient) return;
@@ -942,7 +950,7 @@
           } else if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "Ready" && payload.old && payload.old.status !== "Ready") {
             triggerReadyChime(payload.new.id);
           }
-          queueSyncLocalData();
+          queueOrdersUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(ordersChan);
@@ -952,7 +960,7 @@
         .channel("realtime:owner_order_items")
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "order_items" }, async () => {
           console.log("🔥 Realtime: Order items received, syncing dashboard...");
-          queueSyncLocalData();
+          queueOrdersUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(itemsChan);
@@ -963,7 +971,7 @@
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedback" }, async () => {
           console.log("🔥 Realtime: Guest submitted new feedback review!");
           playGoldChime();
-          queueSyncLocalData();
+          queueFeedbackUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(feedbackChan);
@@ -973,7 +981,7 @@
         .channel("realtime:owner_menu")
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "menu_items" }, async () => {
           console.log("🔥 Realtime: Menu items updated!");
-          queueSyncLocalData();
+          queueMenuUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(menuChan);
@@ -986,7 +994,7 @@
           if (payload.eventType === "UPDATE" && payload.new && payload.new.status === "bill_requested" && payload.old && payload.old.status !== "bill_requested") {
             playNewOrderChime();
           }
-          queueSyncLocalData();
+          queueSessionsUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(sessionsChan);
@@ -996,7 +1004,7 @@
         .channel("realtime:owner_session_members")
         .on("postgres_changes", { event: "*", schema: "public", table: "session_members" }, async () => {
           console.log("🔥 Realtime: Guest joined/left session!");
-          queueSyncLocalData();
+          queueSessionsUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(membersChan);
@@ -1006,10 +1014,12 @@
         .channel("realtime:owner_shared_carts")
         .on("postgres_changes", { event: "*", schema: "public", table: "shared_carts" }, async () => {
           console.log("🔥 Realtime: Seated guest cart update received!");
-          queueSyncLocalData();
+          queueSessionsUpdate();
         })
         .subscribe();
       ownerRealtimeChannels.push(cartsChan);
+
+      _ownerRealtimeConnected = ownerRealtimeChannels.length > 0;
     }
 
     // Dynamic heartbeat polling throttle (Scope 3)
@@ -1022,6 +1032,7 @@
       
       ownerHeartbeatIntervalId = setInterval(async () => {
         if (document.hidden) return; // Skip background processing to conserve memory and CPU load
+        if (_ownerRealtimeConnected) return; // Realtime active; skip heavy polling loop!
         if (Dashboard.isAuthenticated) {
           const beforeActiveCount = Dashboard.orders.filter(o => o.status !== "Served").length;
           
@@ -1046,16 +1057,16 @@
       if (window.gpEvents) {
         window.gpEvents.onOrdersUpdated(async () => {
           playGoldChime();
-          queueSyncLocalData();
+          queueOrdersUpdate();
         });
         
         window.gpEvents.onMenuUpdated(async () => {
-          queueSyncLocalData();
+          queueMenuUpdate();
         });
         
         window.gpEvents.onFeedbacksUpdated(async () => {
           playGoldChime();
-          queueSyncLocalData();
+          queueFeedbackUpdate();
         });
       }
 
@@ -1225,7 +1236,7 @@
               try {
                 const { data: cartData, error: cartErr } = await window.supabaseClient
                   .from("shared_carts")
-                  .select("*");
+                  .select("id, menu_item_id, quantity, guest_name, session_id, table_number");
                 if (!cartErr && cartData) return cartData;
               } catch (e) {}
             }
@@ -1256,6 +1267,92 @@
       })();
 
       return _syncLocalDataPromise;
+    }
+
+    // --- Targeted sync functions for granular realtime updates ---
+    async function syncOrdersOnly() {
+      try {
+        await window.orderService.syncOrders(true);
+        Dashboard.orders = window.orderService.ordersList || Dashboard.orders;
+      } catch (e) {
+        console.error('Targeted orders sync error:', e);
+      }
+    }
+
+    async function syncSessionsOnly() {
+      try {
+        const allSessionsData = await window.cartService.getAllSessions(true);
+        Dashboard.allSessions = allSessionsData || Dashboard.allSessions;
+        Dashboard.activeSessions = Dashboard.allSessions.filter(s => s.status !== 'closed');
+        if (window.supabaseEnabled && window.supabaseClient && window.supabaseDbUpgraded) {
+          try {
+            const { data: cartData, error: cartErr } = await window.supabaseClient
+              .from('shared_carts')
+              .select('id, menu_item_id, quantity, guest_name, session_id, table_number');
+            if (!cartErr && cartData) Dashboard.sharedCarts = cartData;
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.error('Targeted sessions sync error:', e);
+      }
+    }
+
+    async function syncFeedbackOnly() {
+      try {
+        const feedbacksData = await window.feedbackService.getFeedbackLogs(true);
+        Dashboard.feedbacks = feedbacksData || Dashboard.feedbacks;
+      } catch (e) {
+        console.error('Targeted feedback sync error:', e);
+      }
+    }
+
+    async function syncMenuOnly() {
+      try {
+        const menuData = await window.menuService.getMenu(true);
+        Dashboard.menu = menuData || Dashboard.menu;
+      } catch (e) {
+        console.error('Targeted menu sync error:', e);
+      }
+    }
+
+    // --- Coalesced targeted update queues (150ms window to batch rapid events) ---
+    let _ordersQueueId = null;
+    function queueOrdersUpdate() {
+      if (_ordersQueueId) clearTimeout(_ordersQueueId);
+      _ordersQueueId = setTimeout(async () => {
+        await syncOrdersOnly();
+        renderKitchenOrders();
+        renderMetrics();
+      }, 150);
+    }
+
+    let _sessionsQueueId = null;
+    function queueSessionsUpdate() {
+      if (_sessionsQueueId) clearTimeout(_sessionsQueueId);
+      _sessionsQueueId = setTimeout(async () => {
+        await syncSessionsOnly();
+        renderTableManagementGrid();
+        renderMetrics();
+      }, 150);
+    }
+
+    let _feedbackQueueId = null;
+    function queueFeedbackUpdate() {
+      if (_feedbackQueueId) clearTimeout(_feedbackQueueId);
+      _feedbackQueueId = setTimeout(async () => {
+        await syncFeedbackOnly();
+        renderFeedbackFeed();
+        renderMetrics();
+      }, 150);
+    }
+
+    let _menuQueueId = null;
+    function queueMenuUpdate() {
+      if (_menuQueueId) clearTimeout(_menuQueueId);
+      _menuQueueId = setTimeout(async () => {
+        await syncMenuOnly();
+        renderInventoryList();
+      }, 150);
     }
 
     let renderDashboardFrameId = null;
@@ -1532,24 +1629,48 @@
      * Stock triggers helpers
      */
     async function toggleStockAvailability(itemId) {
-      await window.menuService.toggleAvailability(itemId);
+      const item = Dashboard.menu.find(m => m.id === itemId);
+      if (item) {
+        item.inStock = item.inStock === false ? true : false;
+      }
       playGoldChime();
-      await syncLocalData();
-      renderDashboard();
+      renderInventoryList();
+
+      try {
+        await window.menuService.toggleAvailability(itemId);
+      } catch (e) {
+        console.error("Error toggling stock availability in background:", e);
+      }
     }
 
     async function togglePopularStatus(itemId) {
-      await window.menuService.togglePopular(itemId);
+      const item = Dashboard.menu.find(m => m.id === itemId);
+      if (item) {
+        item.is_popular = !item.is_popular;
+      }
       playGoldChime();
-      await syncLocalData();
-      renderDashboard();
+      renderInventoryList();
+      renderTopSellingDishes();
+
+      try {
+        await window.menuService.togglePopular(itemId);
+      } catch (e) {
+        console.error("Error toggling popular status in background:", e);
+      }
     }
 
     async function setSpecialStatus(itemId) {
-      await window.menuService.setTodaysSpecial(itemId);
+      Dashboard.menu.forEach(m => {
+        m.is_todays_special = (m.id === itemId);
+      });
       playGoldChime();
-      await syncLocalData();
-      renderDashboard();
+      renderInventoryList();
+
+      try {
+        await window.menuService.setTodaysSpecial(itemId);
+      } catch (e) {
+        console.error("Error setting todays special in background:", e);
+      }
     }
 
     /**
@@ -1735,10 +1856,26 @@
      * Advance status timelines
      */
     async function advanceOrderStatus(orderId, newStatus) {
-      await window.orderService.updateOrderStatus(orderId, newStatus);
+      // Instant local optimistic update (<10ms)
+      const target = Dashboard.orders.find(o => o.id === orderId);
+      if (target) {
+        target.status = newStatus;
+        const statusOrder = ["Order Placed", "Accepted", "Preparing", "Ready", "Served", "Settled"];
+        const currentIdx = statusOrder.indexOf(target.status);
+        target.history = statusOrder.map((status, index) => ({
+          status: status,
+          completed: index <= currentIdx
+        }));
+      }
       playGoldChime();
-      await syncLocalData();
-      renderDashboard();
+      renderKitchenOrders();
+      renderMetrics();
+
+      try {
+        await window.orderService.updateOrderStatus(orderId, newStatus);
+      } catch (e) {
+        console.error("Error updating order status in background:", e);
+      }
     }
 
     /**
@@ -2185,8 +2322,10 @@
         }
 
         playGoldChime();
-        await syncLocalData();
-        renderDashboard();
+        activeSess.status = "paid";
+        renderTableManagementGrid();
+        renderMetrics();
+        renderArchiveList();
 
         alert(`Payment Completed for Table ${tableNum}! Receipt ${receiptId} generated and archived.`);
       } catch (err) {
@@ -2231,10 +2370,12 @@
         try {
           // Clear active session and its shared carts
           await window.cartService.clearTableSessions(tableNum);
+          Dashboard.activeSessions = Dashboard.activeSessions.filter(s => s.table_number !== tableNum);
           
           playGoldChime();
-          await syncLocalData();
-          renderDashboard();
+          renderTableManagementGrid();
+          renderMetrics();
+          renderKitchenOrders();
           renderArchiveList();
         } catch (e) {
           console.error("Error clearing table:", e);
@@ -2301,6 +2442,8 @@
     }, 1000);
 
     // Archive Search & Prints
+    let _archivePageSize = 25;
+    let _archiveDisplayCount = 25;
     function renderArchiveList() {
       const container = document.getElementById("archive-list-container");
       const counterEl = document.getElementById("archive-count");
@@ -2329,7 +2472,13 @@
         return;
       }
       
-      filtered.slice().reverse().forEach(r => {
+      // Reset display count when searching
+      if (searchQuery) _archiveDisplayCount = _archivePageSize;
+      
+      const reversed = filtered.slice().reverse();
+      const toShow = reversed.slice(0, _archiveDisplayCount);
+      
+      toShow.forEach(r => {
         const row = document.createElement("div");
         row.className = "bg-white p-3 rounded-lg border border-outline-variant/15 flex flex-col sm:flex-row justify-between sm:items-center text-[10px] shadow-sm hover:border-secondary transition-colors gap-3";
         row.innerHTML = `
@@ -2354,6 +2503,18 @@
         `;
         container.appendChild(row);
       });
+      
+      // Add "Load More" button if there are more receipts
+      if (reversed.length > _archiveDisplayCount) {
+        const loadMoreBtn = document.createElement("div");
+        loadMoreBtn.className = "py-3 text-center";
+        loadMoreBtn.innerHTML = `
+          <button class="bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-label-caps tracking-wider px-6 py-2 rounded-lg transition-colors active:scale-95" onclick="_archiveDisplayCount += _archivePageSize; renderArchiveList();">
+            Load More (${reversed.length - _archiveDisplayCount} remaining)
+          </button>
+        `;
+        container.appendChild(loadMoreBtn);
+      }
     }
 
     function viewReceiptDetails(receiptId) {
