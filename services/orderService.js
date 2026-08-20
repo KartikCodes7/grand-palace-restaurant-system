@@ -190,8 +190,12 @@ class OrderService {
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const sessionId = window.cartService.getSessionId();
 
+    console.log("[ORDER] submitOrder called", { orderId, tableNumber, sessionId, supabaseEnabled: window.supabaseEnabled });
+
     if (window.supabaseEnabled) {
       try {
+        console.log("[ORDER] Supabase client:", window.supabaseClient);
+
         const newOrderRow = {
           id: orderId,
           table_number: tableNumber,
@@ -208,10 +212,17 @@ class OrderService {
           newOrderRow.session_id = sessionId || null;
         }
 
+        console.log("[ORDER] orders INSERT payload:", newOrderRow);
+
         const { error: orderErr } = await window.supabaseClient
           .from("orders")
           .insert([newOrderRow]);
-        if (orderErr) throw orderErr;
+
+        if (orderErr) {
+          console.error("[ORDER ERROR] orders INSERT failed:", JSON.stringify(orderErr, null, 2));
+          throw orderErr;
+        }
+        console.log("[ORDER] orders INSERT succeeded for", orderId);
 
         const orderItemsRows = items.map(i => ({
           order_id: orderId,
@@ -220,19 +231,29 @@ class OrderService {
           price: i.item.price
         }));
 
+        console.log("[ORDER] order_items INSERT payload:", orderItemsRows);
+
         const { error: itemsErr } = await window.supabaseClient
           .from("order_items")
           .insert(orderItemsRows);
-        if (itemsErr) throw itemsErr;
+
+        if (itemsErr) {
+          console.error("[ORDER ERROR] order_items INSERT failed:", JSON.stringify(itemsErr, null, 2));
+          throw itemsErr;
+        }
+        console.log("[ORDER] order_items INSERT succeeded for", orderId);
 
         // Sync local cache
         await this.syncOrders(true);
-        return this.ordersList.find(o => o.id === orderId);
+        const createdOrder = this.ordersList.find(o => o.id === orderId);
+        console.log("[ORDER] Final synced order:", createdOrder);
+        return createdOrder;
       } catch (e) {
-        console.error("Supabase order submit error, placing locally:", e);
+        console.error("[ORDER ERROR] Supabase order submit error, placing locally:", e);
         return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
       }
     } else {
+      console.log("[ORDER] Supabase not enabled, submitting locally");
       return this.submitOrderLocally(orderId, timestamp, items, totals, tableNumber);
     }
   }

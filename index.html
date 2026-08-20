@@ -1523,13 +1523,23 @@
     }
 
     async function dispatchOrder() {
+      console.log("[ORDER] Starting order submission");
       const summary = await window.cartService.getCartSummary(App.menu);
       const itemsList = summary.itemsList;
 
       if (itemsList.length === 0) return;
 
+      console.log("[ORDER] Payload:", { itemsList, summary, tableNumber: App.tableNumber });
+      console.log("[ORDER] Supabase client:", window.supabaseClient);
+      console.log("[ORDER] Supabase enabled:", window.supabaseEnabled);
+
       // Submit to database API orderService
       const order = await window.orderService.submitOrder(itemsList, summary, App.tableNumber);
+      console.log("[ORDER] Final order:", order);
+
+      // Sync active orders into App state so the Orders tab renders the new order
+      await syncActiveOrders();
+      await syncOrderHistory();
 
       // Reset cart
       window.cartService.clearCart();
@@ -2041,6 +2051,7 @@
 
     async function checkoutPrepaid(method) {
       closeCheckoutModal();
+      console.log("[ORDER] Starting prepaid checkout submission");
       const summary = await window.cartService.getCartSummary(App.menu);
       const itemsList = summary.itemsList;
 
@@ -2048,6 +2059,11 @@
 
       // 1. Submit order to kitchen
       const order = await window.orderService.submitOrder(itemsList, summary, App.tableNumber);
+      console.log("[ORDER] Prepaid order result:", order);
+
+      // Sync active orders into App state so the Orders tab renders the new order
+      await syncActiveOrders();
+      await syncOrderHistory();
 
       // 2. Clear cart
       window.cartService.clearCart();
